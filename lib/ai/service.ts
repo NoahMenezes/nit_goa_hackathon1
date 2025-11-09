@@ -11,9 +11,19 @@
 import { IssueCategory, IssuePriority } from "@/lib/types";
 
 // Configuration
-const GEMINI_API_KEY = process.env.GEMINI_API_KEY;
-const GEMINI_MODEL = process.env.GEMINI_MODEL || "gemini-1.5-flash";
+const GEMINI_API_KEY =
+  process.env.GEMINI_API_KEY || "AIzaSyDuJd2qad4u38nh81icRcMm4lkGnJqoyEk";
+const GEMINI_MODEL = process.env.GEMINI_MODEL || "gemini-2.0-flash-exp";
 const GEMINI_API_URL = `https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_MODEL}:generateContent`;
+
+// Debug logging
+console.log("🔧 Gemini AI Configuration:");
+console.log("  Model:", GEMINI_MODEL);
+console.log(
+  "  API Key:",
+  GEMINI_API_KEY ? `${GEMINI_API_KEY.substring(0, 10)}...` : "NOT SET",
+);
+console.log("  API URL:", GEMINI_API_URL);
 
 export interface AICategorizationRequest {
   title: string;
@@ -181,50 +191,70 @@ async function callGemini(
     throw new Error("Gemini API key is not configured");
   }
 
+  console.log("🤖 Calling Gemini API...");
+  console.log("  Model:", GEMINI_MODEL);
+  console.log("  Attempt 1 of", maxRetries + 1);
+
   for (let attempt = 0; attempt <= maxRetries; attempt++) {
     try {
+      const requestBody = {
+        contents: [
+          {
+            parts: [
+              {
+                text: `${systemPrompt}\n\n${userPrompt}\n\nRespond with ONLY valid JSON, no markdown formatting.`,
+              },
+            ],
+          },
+        ],
+        generationConfig: {
+          temperature: 0.3,
+          maxOutputTokens: 500,
+          responseMimeType: "application/json",
+        },
+      };
+
+      console.log(
+        "📤 Request URL:",
+        `${GEMINI_API_URL}?key=${GEMINI_API_KEY.substring(0, 10)}...`,
+      );
+
       const response = await fetch(`${GEMINI_API_URL}?key=${GEMINI_API_KEY}`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
         },
-        body: JSON.stringify({
-          contents: [
-            {
-              parts: [
-                {
-                  text: `${systemPrompt}\n\n${userPrompt}\n\nRespond with ONLY valid JSON, no markdown formatting.`,
-                },
-              ],
-            },
-          ],
-          generationConfig: {
-            temperature: 0.3, // Lower temperature for more consistent categorization
-            maxOutputTokens: 500,
-            responseMimeType: "application/json",
-          },
-        }),
+        body: JSON.stringify(requestBody),
       });
+
+      console.log("📥 Response status:", response.status);
 
       if (!response.ok) {
         const errorData = await response.json().catch(() => ({}));
+        console.error("❌ Gemini API Error:", errorData);
         throw new Error(
           `Gemini API error: ${response.status} - ${JSON.stringify(errorData)}`,
         );
       }
 
       const data = await response.json();
+      console.log("✅ Gemini API Response received");
+
       const content = data.candidates?.[0]?.content?.parts?.[0]?.text;
 
       if (!content) {
+        console.error("❌ No content in response:", data);
         throw new Error("No content in Gemini response");
       }
 
+      console.log("✅ Successfully got AI response");
       return content;
     } catch (error) {
+      console.error(`❌ Attempt ${attempt + 1} failed:`, error);
       if (attempt === maxRetries) {
         throw error;
       }
+      console.log(`🔄 Retrying in ${Math.pow(2, attempt)} seconds...`);
       // Wait before retry (exponential backoff)
       await new Promise((resolve) =>
         setTimeout(resolve, Math.pow(2, attempt) * 1000),

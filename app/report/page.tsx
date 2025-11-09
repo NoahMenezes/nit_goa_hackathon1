@@ -52,6 +52,9 @@ export default function ReportIssuePage() {
   const [isUploading, setIsUploading] = useState(false);
   const [isAICategorizing, setIsAICategorizing] = useState(false);
   const [useAI, setUseAI] = useState(false); // Toggle for AI categorization
+  const [aiServiceAvailable, setAiServiceAvailable] = useState<boolean | null>(
+    null,
+  );
   const [aiSuggestion, setAiSuggestion] = useState<{
     category: IssueCategory;
     priority: string;
@@ -71,6 +74,22 @@ export default function ReportIssuePage() {
     description: "",
     ward: "",
   });
+
+  // Check AI service availability on mount
+  useEffect(() => {
+    const checkAIService = async () => {
+      try {
+        const response = await fetch("/api/ai/categorize");
+        const result = await response.json();
+        setAiServiceAvailable(result.success && result.data?.available);
+      } catch (error) {
+        console.error("Failed to check AI service status:", error);
+        setAiServiceAvailable(false);
+      }
+    };
+
+    checkAIService();
+  }, []);
 
   // Check authentication after loading completes
   useEffect(() => {
@@ -239,6 +258,14 @@ export default function ReportIssuePage() {
       return;
     }
 
+    // Check if AI service is available
+    if (aiServiceAvailable === false) {
+      toast.error(
+        "AI service is not configured. Please set GEMINI_API_KEY in your .env.local file or select a category manually.",
+      );
+      return;
+    }
+
     setIsAICategorizing(true);
     try {
       console.log("🔍 Calling AI categorization API with:", {
@@ -286,11 +313,26 @@ export default function ReportIssuePage() {
       }
     } catch (error) {
       console.error("❌ AI Categorization Error:", error);
-      toast.error(
-        error instanceof Error
-          ? error.message
-          : "AI categorization unavailable. Please select manually.",
-      );
+
+      let errorMessage =
+        "AI categorization unavailable. Please select manually.";
+
+      if (error instanceof Error) {
+        if (
+          error.message.includes("not configured") ||
+          error.message.includes("API key")
+        ) {
+          errorMessage =
+            "AI service not configured. Please set GEMINI_API_KEY or select a category manually.";
+        } else if (error.message.includes("rate limit")) {
+          errorMessage =
+            "AI service rate limit exceeded. Please try again later or select manually.";
+        } else {
+          errorMessage = error.message;
+        }
+      }
+
+      toast.error(errorMessage);
     } finally {
       setIsAICategorizing(false);
     }
@@ -341,7 +383,9 @@ export default function ReportIssuePage() {
 
       // Check if AI categorization was successful
       if (!formData.category) {
-        toast.error("AI categorization failed. Please select a category manually or try again.");
+        toast.error(
+          "AI categorization failed. Please select a category manually or try again.",
+        );
         return;
       }
     }
@@ -437,7 +481,9 @@ export default function ReportIssuePage() {
       <div className="min-h-screen bg-linear-to-b from-gray-50 to-white dark:from-black dark:to-gray-950 flex items-center justify-center">
         <div className="text-center">
           <Loader2 className="h-8 w-8 animate-spin mx-auto mb-4 text-purple-600" />
-          <p className="text-gray-600 dark:text-gray-400">Checking authentication...</p>
+          <p className="text-gray-600 dark:text-gray-400">
+            Checking authentication...
+          </p>
         </div>
       </div>
     );
@@ -494,11 +540,25 @@ export default function ReportIssuePage() {
                   <div className="flex items-center gap-3">
                     <Sparkles className="h-5 w-5 text-purple-600 dark:text-purple-400" />
                     <div>
-                      <Label className="text-base font-semibold">
-                        AI-Powered Categorization
-                      </Label>
+                      <div className="flex items-center gap-2">
+                        <Label className="text-base font-semibold">
+                          AI-Powered Categorization
+                        </Label>
+                        {aiServiceAvailable === false && (
+                          <span className="text-xs px-2 py-0.5 bg-red-100 text-red-700 dark:bg-red-900 dark:text-red-300 rounded-full">
+                            Not configured
+                          </span>
+                        )}
+                        {aiServiceAvailable === true && (
+                          <span className="text-xs px-2 py-0.5 bg-green-100 text-green-700 dark:bg-green-900 dark:text-green-300 rounded-full">
+                            Available
+                          </span>
+                        )}
+                      </div>
                       <p className="text-xs text-gray-600 dark:text-gray-400 mt-0.5">
-                        Let AI automatically analyze and categorize your issue
+                        {aiServiceAvailable === false
+                          ? "AI service not configured. Set GEMINI_API_KEY to enable."
+                          : "Let AI automatically analyze and categorize your issue"}
                       </p>
                     </div>
                   </div>
@@ -507,6 +567,7 @@ export default function ReportIssuePage() {
                       type="checkbox"
                       className="sr-only peer"
                       checked={useAI}
+                      disabled={aiServiceAvailable === false}
                       onChange={(e) => {
                         setUseAI(e.target.checked);
                         if (
@@ -519,7 +580,7 @@ export default function ReportIssuePage() {
                         }
                       }}
                     />
-                    <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-purple-300 dark:peer-focus:ring-purple-800 rounded-full peer dark:bg-gray-700 peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all dark:border-gray-600 peer-checked:bg-purple-600"></div>
+                    <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-purple-300 dark:peer-focus:ring-purple-800 rounded-full peer dark:bg-gray-700 peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all dark:border-gray-600 peer-checked:bg-purple-600 peer-disabled:opacity-50 peer-disabled:cursor-not-allowed"></div>
                   </label>
                 </div>
               </div>
@@ -535,10 +596,7 @@ export default function ReportIssuePage() {
                       </span>
                     )}
                   </div>
-
                 </div>
-
-
 
                 <Select
                   value={formData.category}
@@ -548,7 +606,13 @@ export default function ReportIssuePage() {
                   disabled={useAI && !aiSuggestion}
                 >
                   <SelectTrigger className="bg-white dark:bg-black">
-                    <SelectValue placeholder={useAI ? "AI will suggest category..." : "Select category manually"} />
+                    <SelectValue
+                      placeholder={
+                        useAI
+                          ? "AI will suggest category..."
+                          : "Select category manually"
+                      }
+                    />
                   </SelectTrigger>
                   <SelectContent>
                     <SelectItem value="pothole">🕳️ Pothole</SelectItem>
