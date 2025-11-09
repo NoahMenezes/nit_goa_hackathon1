@@ -96,7 +96,16 @@ export default function Home() {
             <div className="relative mt-8 sm:mt-10 md:mt-12 overflow-visible px-2 sm:px-4">
               <NeonGradientCard className="relative mx-auto max-w-6xl shadow-2xl">
                 <div className="relative min-h-[300px] sm:min-h-[400px] md:min-h-[500px] overflow-hidden rounded-xl bg-white dark:bg-black">
-                  {/* Empty clean screen */}
+                  <video
+                    autoPlay
+                    loop
+                    muted
+                    playsInline
+                    className="w-full h-full object-contain"
+                  >
+                    <source src="/demo.mp4" type="video/mp4" />
+                    Your browser does not support the video tag.
+                  </video>
                 </div>
               </NeonGradientCard>
               {/* Gradient fade effect */}
