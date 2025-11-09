@@ -7,6 +7,7 @@ export type AuditAction =
   | "login"
   | "logout"
   | "signup"
+  | "admin_login"
   | "password_reset"
   | "role_change"
   | "bulk_update"
@@ -125,11 +126,12 @@ export function logFailure(params: {
 export function logAuth(params: {
   userId?: string;
   userEmail: string;
-  action: "login" | "logout" | "signup" | "password_reset";
+  action: "login" | "logout" | "signup" | "admin_login" | "password_reset";
   ipAddress?: string;
   userAgent?: string;
   success: boolean;
   errorMessage?: string;
+  metadata?: Record<string, unknown>;
 }): AuditLogEntry {
   return createAuditLog({
     ...params,
