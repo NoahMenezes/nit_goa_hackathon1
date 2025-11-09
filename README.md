@@ -2,6 +2,8 @@
 
 A modern, transparent platform for citizens to report civic issues, track their resolution, and foster collaboration between communities and local authorities.
 
+Live Link: https://nitgoahackathon1.vercel.app/
+
 ![OurStreet Dashboard](https://img.shields.io/badge/Status-Production%20Ready-brightgreen)
 ![Next.js](https://img.shields.io/badge/Next.js-14-black)
 ![TypeScript](https://img.shields.io/badge/TypeScript-5.0-blue)
