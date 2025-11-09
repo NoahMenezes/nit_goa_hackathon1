@@ -17,6 +17,11 @@ interface AuthContextType {
     email: string,
     password: string,
   ) => Promise<{ success: boolean; error?: string }>;
+  adminLogin: (
+    email: string,
+    password: string,
+    adminId: string,
+  ) => Promise<{ success: boolean; error?: string }>;
   signup: (
     name: string,
     email: string,
@@ -151,6 +156,51 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
   };
 
+  // Admin login function
+  const adminLogin = async (
+    email: string,
+    password: string,
+    adminId: string,
+  ) => {
+    try {
+      setIsLoading(true);
+      const response = await fetch("/api/auth/admin-login", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ email, password, adminId }),
+      });
+
+      const data = await response.json();
+
+      if (data.success && data.user && data.token) {
+        // Store token and user data
+        localStorage.setItem("token", data.token);
+        localStorage.setItem("user", JSON.stringify(data.user));
+        setUser(data.user);
+        setIsLoading(false);
+        return { success: true };
+      } else {
+        setIsLoading(false);
+        return {
+          success: false,
+          error: data.error || "Admin login failed",
+        };
+      }
+    } catch (error) {
+      console.error("Admin login error:", error);
+      setIsLoading(false);
+      return {
+        success: false,
+        error:
+          error instanceof Error
+            ? error.message
+            : "An error occurred during admin login",
+      };
+    }
+  };
+
   // Signup function
   const signup = async (
     name: string,
@@ -206,6 +256,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     isLoading,
     isAuthenticated: !!user && isAuthenticated(),
     login,
+    adminLogin,
     signup,
     logout,
     refreshUser,
