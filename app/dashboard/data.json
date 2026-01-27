@@ -1,0 +1,293 @@
+{
+  "issueStatistics": {
+    "totalIssues": 156,
+    "openIssues": 23,
+    "inProgressIssues": 45,
+    "resolvedIssues": 88,
+    "criticalIssues": 8,
+    "averageResolutionTime": 4.2,
+    "slaCompliance": 87.5,
+    "citizenSatisfaction": 4.3
+  },
+  "hotspotTrends": [
+    {
+      "month": "Jan",
+      "potholes": 12,
+      "streetlights": 8,
+      "water": 5,
+      "sanitation": 15,
+      "predicted": 18
+    },
+    {
+      "month": "Feb",
+      "potholes": 15,
+      "streetlights": 10,
+      "water": 7,
+      "sanitation": 12,
+      "predicted": 22
+    },
+    {
+      "month": "Mar",
+      "potholes": 18,
+      "streetlights": 12,
+      "water": 9,
+      "sanitation": 18,
+      "predicted": 25
+    },
+    {
+      "month": "Apr",
+      "potholes": 22,
+      "streetlights": 15,
+      "water": 11,
+      "sanitation": 20,
+      "predicted": 28
+    },
+    {
+      "month": "May",
+      "potholes": 25,
+      "streetlights": 18,
+      "water": 14,
+      "sanitation": 22,
+      "predicted": 32
+    },
+    {
+      "month": "Jun",
+      "potholes": 28,
+      "streetlights": 20,
+      "water": 16,
+      "sanitation": 25,
+      "predicted": 35
+    }
+  ],
+  "resourceDemand": [
+    {
+      "week": "Week 1",
+      "maintenance": 85,
+      "emergency": 92,
+      "planned": 78,
+      "capacity": 100
+    },
+    {
+      "week": "Week 2",
+      "maintenance": 78,
+      "emergency": 88,
+      "planned": 82,
+      "capacity": 100
+    },
+    {
+      "week": "Week 3",
+      "maintenance": 92,
+      "emergency": 95,
+      "planned": 75,
+      "capacity": 100
+    },
+    {
+      "week": "Week 4",
+      "maintenance": 88,
+      "emergency": 90,
+      "planned": 80,
+      "capacity": 100
+    }
+  ],
+  "slaAlerts": [
+    {
+      "id": "SLA-001",
+      "issueId": 1247,
+      "title": "Major Water Pipeline Burst",
+      "category": "Water",
+      "priority": "Critical",
+      "status": "Open",
+      "reportedDate": "2025-11-08T08:30:00Z",
+      "slaDeadline": "2025-11-08T14:30:00Z",
+      "timeRemaining": "2h 15m",
+      "location": "MG Road, Panjim",
+      "assignedTo": "Emergency Team Alpha",
+      "riskLevel": "High",
+      "estimatedImpact": "500+ citizens affected"
+    },
+    {
+      "id": "SLA-002",
+      "issueId": 1255,
+      "title": "Traffic Light Malfunction",
+      "category": "Traffic",
+      "priority": "High",
+      "status": "In Progress",
+      "reportedDate": "2025-11-08T07:15:00Z",
+      "slaDeadline": "2025-11-08T19:15:00Z",
+      "timeRemaining": "6h 45m",
+      "location": "Azad Maidan Junction",
+      "assignedTo": "Traffic Maintenance Unit",
+      "riskLevel": "Medium",
+      "estimatedImpact": "Major traffic congestion"
+    },
+    {
+      "id": "SLA-003",
+      "issueId": 1263,
+      "title": "Overflowing Sewage System",
+      "category": "Sanitation",
+      "priority": "High",
+      "status": "Open",
+      "reportedDate": "2025-11-08T06:45:00Z",
+      "slaDeadline": "2025-11-08T18:45:00Z",
+      "timeRemaining": "8h 12m",
+      "location": "Fontainhas Area",
+      "assignedTo": "Sanitation Team Beta",
+      "riskLevel": "High",
+      "estimatedImpact": "Health hazard risk"
+    },
+    {
+      "id": "SLA-004",
+      "issueId": 1271,
+      "title": "Multiple Street Light Outage",
+      "category": "Lighting",
+      "priority": "Medium",
+      "status": "In Progress",
+      "reportedDate": "2025-11-07T22:30:00Z",
+      "slaDeadline": "2025-11-09T10:30:00Z",
+      "timeRemaining": "1d 14h",
+      "location": "Dona Paula Beach Road",
+      "assignedTo": "Electrical Maintenance",
+      "riskLevel": "Medium",
+      "estimatedImpact": "Public safety concern"
+    },
+    {
+      "id": "SLA-005",
+      "issueId": 1279,
+      "title": "Road Cave-in After Heavy Rain",
+      "category": "Roads",
+      "priority": "Critical",
+      "status": "Open",
+      "reportedDate": "2025-11-08T09:15:00Z",
+      "slaDeadline": "2025-11-08T15:15:00Z",
+      "timeRemaining": "3h 42m",
+      "location": "Porvorim Main Road",
+      "assignedTo": "Road Emergency Team",
+      "riskLevel": "Critical",
+      "estimatedImpact": "Road closure required"
+    }
+  ],
+  "departmentPerformance": [
+    {
+      "department": "Water & Sewage",
+      "totalIssues": 45,
+      "resolved": 38,
+      "avgResolutionTime": 3.8,
+      "slaCompliance": 84.4,
+      "efficiency": 88
+    },
+    {
+      "department": "Roads & Transport",
+      "totalIssues": 52,
+      "resolved": 46,
+      "avgResolutionTime": 5.2,
+      "slaCompliance": 92.3,
+      "efficiency": 91
+    },
+    {
+      "department": "Sanitation",
+      "totalIssues": 38,
+      "resolved": 35,
+      "avgResolutionTime": 2.1,
+      "slaCompliance": 94.7,
+      "efficiency": 95
+    },
+    {
+      "department": "Electrical",
+      "totalIssues": 21,
+      "resolved": 19,
+      "avgResolutionTime": 4.5,
+      "slaCompliance": 90.5,
+      "efficiency": 87
+    }
+  ],
+  "recentActivity": [
+    {
+      "id": 1,
+      "type": "resolution",
+      "message": "Pothole on FC Road has been successfully repaired",
+      "timestamp": "2025-11-08T11:30:00Z",
+      "severity": "success"
+    },
+    {
+      "id": 2,
+      "type": "alert",
+      "message": "SLA breach warning: Water pipeline issue approaching deadline",
+      "timestamp": "2025-11-08T11:15:00Z",
+      "severity": "warning"
+    },
+    {
+      "id": 3,
+      "type": "escalation",
+      "message": "Critical issue escalated: Traffic light malfunction at Azad Maidan",
+      "timestamp": "2025-11-08T10:45:00Z",
+      "severity": "error"
+    },
+    {
+      "id": 4,
+      "type": "assignment",
+      "message": "New drainage issue assigned to Sanitation Team Alpha",
+      "timestamp": "2025-11-08T10:30:00Z",
+      "severity": "info"
+    },
+    {
+      "id": 5,
+      "type": "feedback",
+      "message": "Citizen feedback received: 5-star rating for street light repair",
+      "timestamp": "2025-11-08T10:15:00Z",
+      "severity": "success"
+    }
+  ],
+  "predictiveInsights": {
+    "expectedIssues": {
+      "nextWeek": 28,
+      "nextMonth": 145,
+      "peakDays": ["Monday", "Friday"],
+      "highRiskAreas": ["Panjim City Center", "Mapusa Market", "Margao Station"]
+    },
+    "resourceNeeds": {
+      "additionalStaff": 3,
+      "equipmentUpgrade": ["Water Pumps", "Road Repair Tools"],
+      "budgetIncrease": 12.5
+    },
+    "recommendations": [
+      "Increase patrol frequency in Panjim City Center",
+      "Pre-position emergency equipment during monsoon season",
+      "Schedule preventive maintenance for electrical infrastructure",
+      "Deploy additional sanitation teams for market areas"
+    ]
+  },
+  "geospatialData": [
+    {
+      "area": "Panjim",
+      "lat": 15.4909,
+      "lng": 73.8278,
+      "issueCount": 34,
+      "riskScore": 8.2,
+      "category": "High Density"
+    },
+    {
+      "area": "Mapusa",
+      "lat": 15.5898,
+      "lng": 73.8169,
+      "issueCount": 28,
+      "riskScore": 7.1,
+      "category": "Medium Density"
+    },
+    {
+      "area": "Margao",
+      "lat": 15.2708,
+      "lng": 73.9523,
+      "issueCount": 31,
+      "riskScore": 7.8,
+      "category": "High Density"
+    },
+    {
+      "area": "Vasco da Gama",
+      "lat": 15.3957,
+      "lng": 73.8115,
+      "issueCount": 19,
+      "riskScore": 5.9,
+      "category": "Medium Density"
+    }
+  ]
+}

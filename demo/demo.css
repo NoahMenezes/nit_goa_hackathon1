@@ -1,0 +1,95 @@
+body {
+  font-family: 'Segoe UI', Arial, sans-serif;
+  background: #f6f8fa;
+  margin: 0;
+  padding: 0;
+}
+header {
+  background: linear-gradient(90deg, #0f2027, #2c5364);
+  color: #fff;
+  padding: 2rem 1rem 1rem 1rem;
+  text-align: center;
+}
+nav {
+  background: #fff;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.05);
+  padding: 1rem;
+}
+nav ul {
+  list-style: none;
+  display: flex;
+  justify-content: center;
+  gap: 2rem;
+  margin: 0;
+  padding: 0;
+}
+nav a {
+  text-decoration: none;
+  color: #2c5364;
+  font-weight: bold;
+  transition: color 0.2s;
+}
+nav a:hover {
+  color: #0f2027;
+}
+main {
+  max-width: 900px;
+  margin: 2rem auto;
+  padding: 1rem;
+}
+section {
+  background: #fff;
+  border-radius: 8px;
+  box-shadow: 0 2px 8px rgba(44,83,100,0.08);
+  margin-bottom: 2rem;
+  padding: 1.5rem;
+}
+.card, .map-demo, .team-list {
+  margin-top: 1rem;
+  padding: 1rem;
+  background: #e3eaf1;
+  border-radius: 6px;
+}
+.demo-form {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  margin-top: 1rem;
+}
+.demo-form input {
+  padding: 0.5rem;
+  border: 1px solid #b0bec5;
+  border-radius: 4px;
+}
+.demo-form button {
+  background: #2c5364;
+  color: #fff;
+  border: none;
+  padding: 0.75rem;
+  border-radius: 4px;
+  cursor: pointer;
+  font-weight: bold;
+  transition: background 0.2s;
+}
+.demo-form button:hover {
+  background: #0f2027;
+}
+.team-list {
+  display: flex;
+  gap: 1rem;
+}
+.team-member {
+  background: #fff;
+  border: 1px solid #b0bec5;
+  border-radius: 4px;
+  padding: 0.75rem 1.5rem;
+  box-shadow: 0 1px 4px rgba(44,83,100,0.08);
+}
+footer {
+  text-align: center;
+  padding: 1rem;
+  background: #2c5364;
+  color: #fff;
+  margin-top: 2rem;
+  border-radius: 0 0 8px 8px;
+}
