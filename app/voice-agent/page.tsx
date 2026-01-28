@@ -1,15 +1,7 @@
 "use client";
 
 import React from "react";
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
-import { Phone, Volume2 } from "lucide-react";
+import { Card } from "@/components/ui/card";
 import { useCallback, useState } from "react";
 import { useConversation } from "@elevenlabs/react";
 import { AnimatePresence, motion } from "framer-motion";
@@ -225,148 +217,10 @@ export default function VoiceAgentPage() {
         </p>
       </div>
 
-      {/* Status Badge */}
-      <div className="flex justify-center mb-8">
-        <Badge variant="secondary" className="px-4 py-2">
-          <div className="flex items-center gap-2">
-            <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse"></div>
-            Voice Agent Ready
-          </div>
-        </Badge>
-      </div>
-
       {/* Main Voice Agent Interface */}
       <div className="mb-8">
         <VoiceChatInterface />
       </div>
-
-      {/* Information Cards */}
-      <div className="grid gap-6 md:grid-cols-2">
-        {/* Features Card */}
-        <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <Phone className="h-5 w-5" />
-              What You Can Do
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <div className="space-y-3">
-              <div className="flex items-start gap-3">
-                <div className="w-2 h-2 bg-blue-500 rounded-full mt-2"></div>
-                <div>
-                  <p className="font-medium">Report Issues</p>
-                  <p className="text-sm text-muted-foreground">
-                    Describe problems in your area using natural speech
-                  </p>
-                </div>
-              </div>
-              <div className="flex items-start gap-3">
-                <div className="w-2 h-2 bg-green-500 rounded-full mt-2"></div>
-                <div>
-                  <p className="font-medium">Get Information</p>
-                  <p className="text-sm text-muted-foreground">
-                    Ask about ongoing projects and issue status
-                  </p>
-                </div>
-              </div>
-              <div className="flex items-start gap-3">
-                <div className="w-2 h-2 bg-purple-500 rounded-full mt-2"></div>
-                <div>
-                  <p className="font-medium">Navigation Help</p>
-                  <p className="text-sm text-muted-foreground">
-                    Get guided assistance using the platform
-                  </p>
-                </div>
-              </div>
-              <div className="flex items-start gap-3">
-                <div className="w-2 h-2 bg-orange-500 rounded-full mt-2"></div>
-                <div>
-                  <p className="font-medium">Emergency Reporting</p>
-                  <p className="text-sm text-muted-foreground">
-                    Quickly report urgent issues that need immediate attention
-                  </p>
-                </div>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-
-        {/* Tips Card */}
-        <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <Volume2 className="h-5 w-5" />
-              Voice Tips
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <div className="space-y-3">
-              <div className="p-3 bg-muted rounded-lg">
-                <p className="text-sm font-medium mb-1">Speak Clearly</p>
-                <p className="text-xs text-muted-foreground">
-                  Use clear, normal speech for best recognition
-                </p>
-              </div>
-              <div className="p-3 bg-muted rounded-lg">
-                <p className="text-sm font-medium mb-1">Be Specific</p>
-                <p className="text-xs text-muted-foreground">
-                  Include location details and specific problem descriptions
-                </p>
-              </div>
-              <div className="p-3 bg-muted rounded-lg">
-                <p className="text-sm font-medium mb-1">Wait for Response</p>
-                <p className="text-xs text-muted-foreground">
-                  Allow the agent to process and respond to your request
-                </p>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-      </div>
-
-      {/* Example Phrases */}
-      <Card className="mt-6">
-        <CardHeader>
-          <CardTitle>Example Phrases</CardTitle>
-          <CardDescription>
-            Try saying these phrases to get started with the voice agent
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
-          <div className="grid gap-4 md:grid-cols-2">
-            <div className="space-y-2">
-              <h4 className="font-medium text-sm">Reporting Issues:</h4>
-              <div className="space-y-1">
-                <p className="text-sm text-muted-foreground p-2 bg-muted rounded">
-                  &quot;There&apos;s a pothole on Main Street near the
-                  library&quot;
-                </p>
-                <p className="text-sm text-muted-foreground p-2 bg-muted rounded">
-                  &quot;The streetlight is broken on 5th Avenue&quot;
-                </p>
-                <p className="text-sm text-muted-foreground p-2 bg-muted rounded">
-                  &quot;I want to report illegal dumping in Central Park&quot;
-                </p>
-              </div>
-            </div>
-            <div className="space-y-2">
-              <h4 className="font-medium text-sm">Getting Help:</h4>
-              <div className="space-y-1">
-                <p className="text-sm text-muted-foreground p-2 bg-muted rounded">
-                  &quot;How do I check the status of my report?&quot;
-                </p>
-                <p className="text-sm text-muted-foreground p-2 bg-muted rounded">
-                  &quot;Show me the dashboard&quot;
-                </p>
-                <p className="text-sm text-muted-foreground p-2 bg-muted rounded">
-                  &quot;What&apos;s happening in my neighborhood?&quot;
-                </p>
-              </div>
-            </div>
-          </div>
-        </CardContent>
-      </Card>
     </div>
   );
 }

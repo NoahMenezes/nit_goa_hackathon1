@@ -330,35 +330,6 @@ export default function Home() {
             </div>
           </div>
         </section>
-
-        {/* CTA Section */}
-        <section className="border-t border-gray-200 dark:border-gray-800 bg-white/20 dark:bg-black/20 py-20">
-          <div className="container mx-auto px-4 text-center">
-            <h2 className="mb-4 text-3xl font-bold text-black dark:text-white sm:text-4xl">
-              Ready to Make a Difference?
-            </h2>
-            <p className="mb-8 text-lg text-gray-600 dark:text-gray-400">
-              Join OurStreet today and help build a better community
-            </p>
-            {!isAuthenticated ? (
-              <Button
-                asChild
-                size="lg"
-                className="bg-black dark:bg-white text-white dark:text-black hover:bg-gray-800 dark:hover:bg-gray-200 h-10 px-8"
-              >
-                <Link href="/signup">Get Started</Link>
-              </Button>
-            ) : (
-              <Button
-                asChild
-                size="lg"
-                className="bg-black dark:bg-white text-white dark:text-black hover:bg-gray-800 dark:hover:bg-gray-200 h-10 px-8"
-              >
-                <Link href="/report">Report Issue</Link>
-              </Button>
-            )}
-          </div>
-        </section>
       </main>
 
       {/* Footer */}
