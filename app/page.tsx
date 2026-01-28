@@ -1,7 +1,18 @@
 "use client";
 
 import Link from "next/link";
-import { AlertCircle, TrendingUp, Shield, MapPin } from "lucide-react";
+import {
+  AlertCircle,
+  TrendingUp,
+  Shield,
+  MapPin,
+  Users,
+  Bell,
+  BarChart3,
+  Clock,
+  MessageSquare,
+  Award,
+} from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { ShuffleText } from "@/components/shuffle-text";
 import "@/components/shuffle-text/shuffle.css";
@@ -188,6 +199,96 @@ export default function Home() {
                   <p className="text-sm text-gray-600 dark:text-gray-400">
                     Access impact reports and analytics for complete
                     accountability and transparency
+                  </p>
+                </div>
+              </NeonGradientCard>
+
+              <NeonGradientCard className="transition-all duration-300 ease-in-out hover:scale-[1.03] cursor-pointer">
+                <div className="flex flex-col items-center gap-4 text-center">
+                  <div className="flex size-12 items-center justify-center rounded-lg bg-white/90 dark:bg-black/90 text-black dark:text-white">
+                    <Users className="size-6" />
+                  </div>
+                  <h3 className="text-xl font-semibold text-black dark:text-white">
+                    Community Driven
+                  </h3>
+                  <p className="text-sm text-gray-600 dark:text-gray-400">
+                    Upvote issues, collaborate with neighbors, and strengthen
+                    community bonds through civic engagement
+                  </p>
+                </div>
+              </NeonGradientCard>
+
+              <NeonGradientCard className="transition-all duration-300 ease-in-out hover:scale-[1.03] cursor-pointer">
+                <div className="flex flex-col items-center gap-4 text-center">
+                  <div className="flex size-12 items-center justify-center rounded-lg bg-white/90 dark:bg-black/90 text-black dark:text-white">
+                    <Bell className="size-6" />
+                  </div>
+                  <h3 className="text-xl font-semibold text-black dark:text-white">
+                    Smart Notifications
+                  </h3>
+                  <p className="text-sm text-gray-600 dark:text-gray-400">
+                    Get instant updates when your reported issues are
+                    acknowledged, in progress, or resolved
+                  </p>
+                </div>
+              </NeonGradientCard>
+
+              <NeonGradientCard className="transition-all duration-300 ease-in-out hover:scale-[1.03] cursor-pointer">
+                <div className="flex flex-col items-center gap-4 text-center">
+                  <div className="flex size-12 items-center justify-center rounded-lg bg-white/90 dark:bg-black/90 text-black dark:text-white">
+                    <BarChart3 className="size-6" />
+                  </div>
+                  <h3 className="text-xl font-semibold text-black dark:text-white">
+                    Data Analytics
+                  </h3>
+                  <p className="text-sm text-gray-600 dark:text-gray-400">
+                    View comprehensive statistics and trends to understand civic
+                    issues in your area better
+                  </p>
+                </div>
+              </NeonGradientCard>
+
+              <NeonGradientCard className="transition-all duration-300 ease-in-out hover:scale-[1.03] cursor-pointer">
+                <div className="flex flex-col items-center gap-4 text-center">
+                  <div className="flex size-12 items-center justify-center rounded-lg bg-white/90 dark:bg-black/90 text-black dark:text-white">
+                    <Clock className="size-6" />
+                  </div>
+                  <h3 className="text-xl font-semibold text-black dark:text-white">
+                    Response Timeline
+                  </h3>
+                  <p className="text-sm text-gray-600 dark:text-gray-400">
+                    See estimated resolution times and historical data for
+                    different issue types
+                  </p>
+                </div>
+              </NeonGradientCard>
+
+              <NeonGradientCard className="transition-all duration-300 ease-in-out hover:scale-[1.03] cursor-pointer">
+                <div className="flex flex-col items-center gap-4 text-center">
+                  <div className="flex size-12 items-center justify-center rounded-lg bg-white/90 dark:bg-black/90 text-black dark:text-white">
+                    <MessageSquare className="size-6" />
+                  </div>
+                  <h3 className="text-xl font-semibold text-black dark:text-white">
+                    Direct Communication
+                  </h3>
+                  <p className="text-sm text-gray-600 dark:text-gray-400">
+                    Comment on issues, provide updates, and communicate directly
+                    with authorities and neighbors
+                  </p>
+                </div>
+              </NeonGradientCard>
+
+              <NeonGradientCard className="transition-all duration-300 ease-in-out hover:scale-[1.03] cursor-pointer">
+                <div className="flex flex-col items-center gap-4 text-center">
+                  <div className="flex size-12 items-center justify-center rounded-lg bg-white/90 dark:bg-black/90 text-black dark:text-white">
+                    <Award className="size-6" />
+                  </div>
+                  <h3 className="text-xl font-semibold text-black dark:text-white">
+                    Impact Recognition
+                  </h3>
+                  <p className="text-sm text-gray-600 dark:text-gray-400">
+                    Earn badges and recognition for active civic participation
+                    and community contributions
                   </p>
                 </div>
               </NeonGradientCard>
