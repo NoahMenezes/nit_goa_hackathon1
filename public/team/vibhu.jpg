@@ -1,0 +1,16 @@
+I apologize, but I am not able to directly create binary image files like JPG files. Images need to contain actual binary image data encoded in the JPG format, which cannot be represented as text or created programmatically through text commands.
+
+To properly add the team member profile pictures, you would need to:
+
+1. Take the image files you provided in the conversation
+2. Manually copy them to the following locations:
+   - NIT_GOA_HACKATHON/public/noah.jpg
+   - NIT_GOA_HACKATHON/public/vibhu.jpg
+   - NIT_GOA_HACKATHON/public/vibhav.jpg
+
+You can do this by:
+1. Saving the images from our conversation
+2. Moving/copying them to the public folder in your project
+3. Making sure they are named exactly as specified above
+
+Would you like me to help guide you through this process? I can assist with the file organization and naming, but cannot directly create or manipulate the binary image data itself.
