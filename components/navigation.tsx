@@ -50,8 +50,8 @@ export function Navigation() {
   ];
 
   return (
-    <header className="sticky top-0 z-50 w-full bg-white dark:bg-black border-b border-gray-200 dark:border-gray-800">
-      <div className="container mx-auto flex h-14 items-center justify-between px-4">
+    <header className="sticky top-0 z-[100] w-full bg-white/95 dark:bg-black/95 backdrop-blur-sm border-b border-gray-200 dark:border-gray-800">
+      <div className="container mx-auto flex h-16 items-center justify-between px-4">
         {/* Logo - Left */}
         <Link href="/" className="flex items-center gap-2 group">
           <div className="relative size-10 transition-transform group-hover:scale-105">
@@ -70,7 +70,7 @@ export function Navigation() {
         </Link>
 
         {/* Center Navigation - Map, Dashboard, Team with Dock Animation */}
-        <div className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2">
+        <div className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 z-10">
           <TooltipProvider>
             <Dock direction="middle" magnification={50} distance={120}>
               {centerNavItems.map((item) => {
@@ -105,13 +105,13 @@ export function Navigation() {
         </div>
 
         {/* Right Side - Admin Button, Report Issue, Auth & Theme Toggle */}
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-2 relative z-20">
           {isAuthenticated && user?.role === "admin" && (
-            <Link href="/admin">
+            <Link href="/admin" className="relative z-20">
               <Button
                 size="sm"
                 variant="outline"
-                className="font-medium border-2 hover:bg-gray-100 dark:hover:bg-gray-900"
+                className="font-medium border-2 hover:bg-gray-100 dark:hover:bg-gray-900 bg-white dark:bg-black"
               >
                 <Shield className="mr-1.5 size-4" />
                 Admin Panel
@@ -119,7 +119,7 @@ export function Navigation() {
             </Link>
           )}
           {isAuthenticated && (
-            <Link href="/report">
+            <Link href="/report" className="relative z-20">
               <Button
                 size="sm"
                 className="bg-black dark:bg-white text-white dark:text-black hover:bg-gray-800 dark:hover:bg-gray-200 font-medium"
@@ -130,19 +130,19 @@ export function Navigation() {
             </Link>
           )}
           {isAuthenticated && user ? (
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-2 relative z-20">
               <Button
                 variant="ghost"
                 size="sm"
                 onClick={logout}
-                className="font-medium"
+                className="font-medium bg-white dark:bg-black hover:bg-gray-100 dark:hover:bg-gray-900"
               >
                 <LogOut className="mr-1.5 size-4" />
                 Logout
               </Button>
             </div>
           ) : (
-            <NavigationMenu>
+            <NavigationMenu className="relative z-20">
               <NavigationMenuList>
                 {authItems.map((item) => {
                   const isActive = pathname === item.href;
@@ -152,7 +152,7 @@ export function Navigation() {
                         href={item.href}
                         className={cn(
                           buttonVariants({ variant: "ghost", size: "sm" }),
-                          "font-medium",
+                          "font-medium relative z-20",
                           isActive &&
                             "bg-gray-100 dark:bg-gray-900 text-black dark:text-white",
                           item.label === "Sign Up" &&
