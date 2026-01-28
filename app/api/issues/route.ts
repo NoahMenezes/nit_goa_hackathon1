@@ -9,6 +9,14 @@ import {
 } from "@/lib/types";
 import { categorizeIssue, isAIServiceAvailable } from "@/lib/ai/service";
 
+// ============================================================================
+// SECURITY CONFIGURATION
+// ============================================================================
+// Set to true in production to require authentication for issue creation
+// Currently allows guest users for demo/hackathon purposes
+const REQUIRE_AUTH_FOR_ISSUE_CREATION =
+  process.env.REQUIRE_AUTH_FOR_ISSUES === "true";
+
 // Validation helpers
 function isValidCoordinate(lat: number, lng: number): boolean {
   return lat >= -90 && lat <= 90 && lng >= -180 && lng <= 180;
@@ -140,13 +148,29 @@ export async function GET(request: NextRequest) {
 }
 
 // POST /api/issues - Create a new issue
+// NOTE: This endpoint allows guest users by default for demo purposes.
+// Set REQUIRE_AUTH_FOR_ISSUES=true in production to require authentication.
 export async function POST(request: NextRequest) {
   try {
-    // Get user from auth token (allow guest users for demo)
+    // Get user from auth token
     let user = getUserFromRequest(request);
 
-    // If no user, create a guest user object
+    // Check if authentication is required
+    if (REQUIRE_AUTH_FOR_ISSUE_CREATION && !user) {
+      return NextResponse.json(
+        {
+          success: false,
+          error: "Authentication required to report issues",
+        } as ApiResponse,
+        { status: 401 },
+      );
+    }
+
+    // If no user and guest access is allowed, create a guest user object
     if (!user) {
+      console.log(
+        "⚠️ Guest user creating issue - consider enabling REQUIRE_AUTH_FOR_ISSUES in production",
+      );
       user = {
         userId: "guest-" + Date.now(),
         email: "guest@ourstreet.com",

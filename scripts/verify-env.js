@@ -60,6 +60,12 @@ const envConfig = {
   ],
   optional: [
     {
+      name: "SUPABASE_SERVICE_ROLE_KEY",
+      description: "Supabase service role key for admin operations",
+      example: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...",
+      validation: (value) => value && value.length > 20,
+    },
+    {
       name: "GEMINI_API_KEY",
       description: "Google Gemini API key for AI categorization",
       example: "AIzaSy...",
@@ -68,6 +74,21 @@ const envConfig = {
       name: "NEXT_PUBLIC_MAPTILER_API_KEY",
       description: "MapTiler API key for interactive maps",
       example: "abc123...",
+    },
+    {
+      name: "NEXT_PUBLIC_AGENT_ID",
+      description: "ElevenLabs voice agent ID",
+      example: "agent_xxxxx",
+    },
+    {
+      name: "NEXT_PUBLIC_CLOUDINARY_CLOUD_NAME",
+      description: "Cloudinary cloud name for image uploads",
+      example: "your-cloud-name",
+    },
+    {
+      name: "NEXT_PUBLIC_CLOUDINARY_UPLOAD_PRESET",
+      description: "Cloudinary upload preset for image uploads",
+      example: "your-preset",
     },
     {
       name: "RESEND_API_KEY",
@@ -90,6 +111,16 @@ const envConfig = {
       example: "+1234567890",
     },
   ],
+  security: [
+    {
+      name: "REQUIRE_AUTH_FOR_ISSUES",
+      description:
+        "Require authentication for issue creation (recommended for production)",
+      example: "true",
+      validation: (value) => !value || value === "true" || value === "false",
+      errorMessage: "Must be 'true' or 'false'",
+    },
+  ],
 };
 
 // Check if running in CI/CD environment
@@ -103,6 +134,7 @@ const results = {
   critical: { passed: 0, failed: 0, missing: [] },
   recommended: { passed: 0, failed: 0, missing: [] },
   optional: { passed: 0, failed: 0, missing: [] },
+  security: { passed: 0, failed: 0, missing: [] },
 };
 
 /**
@@ -383,6 +415,10 @@ function main() {
   // Check optional variables
   printSection("Optional Variables (Enhanced Features)", "optional");
   envConfig.optional.forEach((config) => checkEnvVar(config, "optional"));
+
+  // Check security variables
+  printSection("Security Configuration", "security");
+  envConfig.security.forEach((config) => checkEnvVar(config, "security"));
 
   // Print summary
   printSummary();

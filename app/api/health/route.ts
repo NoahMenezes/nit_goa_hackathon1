@@ -1,6 +1,8 @@
 // Health Check API - Monitor system health and dependencies
 import { NextRequest, NextResponse } from "next/server";
 import { userDb } from "@/lib/db";
+import { getSupabaseStatus, testConnection } from "@/lib/supabase";
+import { isJWTConfigured } from "@/lib/auth";
 
 interface HealthStatus {
   status: "healthy" | "degraded" | "unhealthy";
@@ -32,17 +34,32 @@ export async function GET(_request: NextRequest) {
   const checkStartTime = Date.now();
 
   try {
-    // Check database connectivity
+    // Check database connectivity using improved status checking
     let dbStatus: "up" | "down" = "down";
     let dbResponseTime: number | undefined;
     let dbError: string | undefined;
 
+    // Get Supabase configuration status
+    const supabaseStatus = getSupabaseStatus();
+
     try {
-      const dbCheckStart = Date.now();
-      // Try to fetch a small amount of data to verify DB connection
-      await userDb.getAll();
-      dbResponseTime = Date.now() - dbCheckStart;
-      dbStatus = "up";
+      if (supabaseStatus.configured) {
+        // Test actual Supabase connection
+        const connectionTest = await testConnection();
+        dbResponseTime = connectionTest.latencyMs;
+        dbStatus = connectionTest.connected ? "up" : "down";
+        dbError = connectionTest.error;
+      } else {
+        // Fallback: test in-memory database
+        const dbCheckStart = Date.now();
+        await userDb.getAll();
+        dbResponseTime = Date.now() - dbCheckStart;
+        dbStatus = "up";
+        // Note that we're using in-memory DB
+        if (process.env.NODE_ENV === "production") {
+          dbError = "Using in-memory database - data will not persist";
+        }
+      }
     } catch (error) {
       dbError =
         error instanceof Error ? error.message : "Database check failed";
@@ -72,18 +89,29 @@ export async function GET(_request: NextRequest) {
     // Check environment configuration
     const envWarnings: string[] = [];
 
-    if (!process.env.JWT_SECRET) {
-      envWarnings.push("JWT_SECRET not configured");
+    // Check JWT configuration using the improved helper
+    if (!isJWTConfigured()) {
+      envWarnings.push("JWT_SECRET not configured or invalid");
     }
 
-    if (
-      process.env.JWT_SECRET === "ourstreet-secret-key-change-in-production"
-    ) {
-      envWarnings.push("Using default JWT_SECRET - change in production");
+    // Check for Supabase in production
+    if (process.env.NODE_ENV === "production" && !supabaseStatus.configured) {
+      envWarnings.push(
+        "Supabase not configured in production - using in-memory database",
+      );
+    }
+
+    if (!supabaseStatus.urlValid && supabaseStatus.hasUrl) {
+      envWarnings.push("Invalid Supabase URL format");
     }
 
     if (!cloudinaryConfigured && !supabaseConfigured) {
-      envWarnings.push("No storage provider configured");
+      envWarnings.push("No storage provider configured for file uploads");
+    }
+
+    // Check for AI service
+    if (!process.env.GEMINI_API_KEY) {
+      envWarnings.push("GEMINI_API_KEY not configured - AI features disabled");
     }
 
     // Determine overall health status

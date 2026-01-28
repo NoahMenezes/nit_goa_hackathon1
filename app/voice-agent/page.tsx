@@ -12,11 +12,16 @@ import { Orb } from "@/components/ui/orb";
 import { ShimmeringText } from "@/components/ui/shimmering-text";
 import { ProtectedRoute } from "@/components/protected-route";
 
+// Agent ID must be configured via environment variable
+const AGENT_ID = process.env.NEXT_PUBLIC_AGENT_ID;
+
 const DEFAULT_AGENT = {
-  agentId:
-    process.env.NEXT_PUBLIC_AGENT_ID || "agent_8701kfjzrrhcf408keqd06k3pryw",
+  agentId: AGENT_ID || "",
   name: "City Assistant",
-  description: "Tap to start voice chat with your civic assistant",
+  description: AGENT_ID
+    ? "Tap to start voice chat with your civic assistant"
+    : "Voice agent not configured. Please set NEXT_PUBLIC_AGENT_ID environment variable.",
+  isConfigured: !!AGENT_ID,
 };
 
 type AgentState =
@@ -28,7 +33,11 @@ type AgentState =
 
 function VoiceChatInterface() {
   const [agentState, setAgentState] = useState<AgentState>("disconnected");
-  const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const [errorMessage, setErrorMessage] = useState<string | null>(
+    DEFAULT_AGENT.isConfigured
+      ? null
+      : "Voice agent not configured. Please set NEXT_PUBLIC_AGENT_ID environment variable.",
+  );
 
   const conversation = useConversation({
     onConnect: () => console.log("Connected to voice agent"),
@@ -42,6 +51,12 @@ function VoiceChatInterface() {
 
   const startConversation = useCallback(async () => {
     try {
+      if (!DEFAULT_AGENT.isConfigured) {
+        setErrorMessage(
+          "Voice agent not configured. Please set NEXT_PUBLIC_AGENT_ID environment variable.",
+        );
+        return;
+      }
       setErrorMessage(null);
       await navigator.mediaDevices.getUserMedia({ audio: true });
       await conversation.startSession({

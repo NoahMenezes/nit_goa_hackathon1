@@ -4,20 +4,54 @@ import bcrypt from "bcryptjs";
 import jwt from "jsonwebtoken";
 import { User } from "./types";
 
-// JWT secret (in production, use environment variable)
+// JWT secret - MUST be set via environment variable
 const JWT_SECRET = process.env.JWT_SECRET;
 const JWT_EXPIRES_IN = "7d";
 
-// Warning for missing JWT_SECRET
-if (!JWT_SECRET && process.env.NODE_ENV !== "production") {
-  console.warn(
-    "⚠️ WARNING: JWT_SECRET not set. Using insecure fallback for development. " +
-      "Generate a secure secret with: openssl rand -base64 32",
-  );
+// Validate JWT_SECRET at startup
+const isProduction = process.env.NODE_ENV === "production";
+const isDevelopment = process.env.NODE_ENV === "development";
+
+// Development-only fallback - NEVER use in production
+const DEV_ONLY_FALLBACK = "dev-only-insecure-secret-do-not-use-in-prod";
+
+// Determine the actual secret to use
+function getJWTSecret(): string {
+  if (JWT_SECRET && JWT_SECRET.length >= 32) {
+    return JWT_SECRET;
+  }
+
+  if (isProduction) {
+    throw new Error(
+      "CRITICAL SECURITY ERROR: JWT_SECRET environment variable is not set or is too short (min 32 chars). " +
+        "Generate one with: openssl rand -base64 32",
+    );
+  }
+
+  // Only allow fallback in development with clear warning
+  if (isDevelopment) {
+    console.warn(
+      "\n" +
+        "⚠️ ═══════════════════════════════════════════════════════════════════════\n" +
+        "⚠️ SECURITY WARNING: Using insecure development-only JWT secret!\n" +
+        "⚠️ Set JWT_SECRET env variable before deploying to production.\n" +
+        "⚠️ Generate one with: openssl rand -base64 32\n" +
+        "⚠️ ═══════════════════════════════════════════════════════════════════════\n",
+    );
+    return DEV_ONLY_FALLBACK;
+  }
+
+  throw new Error("JWT_SECRET must be configured");
 }
 
-const FALLBACK_SECRET = "ourstreet-secret-key-change-in-production";
-const ACTUAL_JWT_SECRET = JWT_SECRET || FALLBACK_SECRET;
+// Lazily initialize to allow for proper error handling
+let _cachedJWTSecret: string | null = null;
+function getActualJWTSecret(): string {
+  if (!_cachedJWTSecret) {
+    _cachedJWTSecret = getJWTSecret();
+  }
+  return _cachedJWTSecret;
+}
 
 // Generate JWT token
 export function generateToken(
@@ -25,13 +59,7 @@ export function generateToken(
   email: string,
   role: string,
 ): string {
-  // Runtime check for production
-  if (!JWT_SECRET && process.env.NODE_ENV === "production") {
-    throw new Error(
-      "CRITICAL: JWT_SECRET environment variable is not set in production. " +
-        "Generate one with: openssl rand -base64 32",
-    );
-  }
+  const secret = getActualJWTSecret();
 
   const payload = {
     userId,
@@ -40,7 +68,7 @@ export function generateToken(
     iat: Math.floor(Date.now() / 1000),
   };
 
-  return jwt.sign(payload, ACTUAL_JWT_SECRET, { expiresIn: JWT_EXPIRES_IN });
+  return jwt.sign(payload, secret, { expiresIn: JWT_EXPIRES_IN });
 }
 
 // Verify JWT token
@@ -48,7 +76,8 @@ export function verifyToken(
   token: string,
 ): { userId: string; email: string; role: string } | null {
   try {
-    const decoded = jwt.verify(token, ACTUAL_JWT_SECRET) as {
+    const secret = getActualJWTSecret();
+    const decoded = jwt.verify(token, secret) as {
       userId: string;
       email: string;
       role: string;
@@ -57,6 +86,16 @@ export function verifyToken(
   } catch (error) {
     console.error("Token verification failed:", error);
     return null;
+  }
+}
+
+// Check if JWT is properly configured (useful for health checks)
+export function isJWTConfigured(): boolean {
+  try {
+    getActualJWTSecret();
+    return true;
+  } catch {
+    return false;
   }
 }
 
