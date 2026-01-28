@@ -12,6 +12,7 @@ import {
   Home,
   Shield,
   Mic,
+  Github,
 } from "lucide-react";
 import {
   NavigationMenu,
@@ -167,6 +168,17 @@ export function Navigation() {
               </NavigationMenuList>
             </NavigationMenu>
           )}
+          <a
+            href="https://github.com/NoahMenezes/nit_goa_hackathon1"
+            target="_blank"
+            rel="noopener noreferrer"
+            className={cn(
+              buttonVariants({ variant: "ghost", size: "icon" }),
+              "size-10 rounded-full",
+            )}
+          >
+            <Github className="size-5" />
+          </a>
           <ThemeToggle />
         </div>
       </div>

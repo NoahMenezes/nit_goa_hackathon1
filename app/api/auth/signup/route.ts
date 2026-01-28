@@ -7,6 +7,7 @@ import {
   sanitizeUser,
 } from "@/lib/auth";
 import { SignupRequest, AuthResponse } from "@/lib/types";
+import { sendWelcomeEmail } from "@/lib/email";
 
 export async function POST(request: NextRequest) {
   try {
@@ -103,6 +104,12 @@ export async function POST(request: NextRequest) {
 
     // Generate token
     const token = generateToken(newUser.id, newUser.email, newUser.role);
+
+    // Send welcome email (async, don't wait for it)
+    sendWelcomeEmail(newUser.name, newUser.email).catch((error) => {
+      console.error("Failed to send welcome email:", error);
+      // Don't fail the signup if email fails
+    });
 
     // Return success response
     return NextResponse.json(

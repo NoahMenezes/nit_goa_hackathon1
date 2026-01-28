@@ -9,6 +9,7 @@ import {
 import { LoginRequest, AuthResponse } from "@/lib/types";
 import { checkRateLimit, RATE_LIMITS } from "@/lib/rate-limit";
 import { logAuth, getRequestMetadata } from "@/lib/audit-log";
+import { sendLoginEmail } from "@/lib/email";
 
 export async function POST(request: NextRequest) {
   const { ipAddress, userAgent } = getRequestMetadata(request);
@@ -152,6 +153,14 @@ export async function POST(request: NextRequest) {
       userAgent,
       success: true,
     });
+
+    // Send login notification email (async, don't wait for it)
+    sendLoginEmail(user.name, user.email, ipAddress, userAgent).catch(
+      (error) => {
+        console.error("Failed to send login notification email:", error);
+        // Don't fail the login if email fails
+      },
+    );
 
     // Return success response with rate limit headers
     return NextResponse.json(

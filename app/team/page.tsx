@@ -26,15 +26,6 @@ const teamMembers = [
     linkedin: "#",
     email: "vibhu@ourstreet.com",
   },
-  {
-    name: "Vibhav Bilgoji",
-    role: "Backend Developer",
-    bio: "Specialized in system architecture and API design",
-    image: "/team/vibhav.png",
-    github: "#",
-    linkedin: "#",
-    email: "vibhav@ourstreet.com",
-  },
 ];
 
 export default function TeamPage() {
@@ -191,32 +182,7 @@ export default function TeamPage() {
             </div>
           </div>
 
-          {/* CTA Section */}
-          <div className="mt-16 text-center">
-            <div className="p-8 border border-gray-200 dark:border-gray-800 rounded-lg bg-gray-50 dark:bg-gray-950 max-w-2xl mx-auto transform transition-all duration-300 hover:shadow-lg hover:scale-105">
-              <h2 className="text-2xl font-bold text-black dark:text-white mb-4">
-                <GSAPTextAnimate>Want to Contribute?</GSAPTextAnimate>
-              </h2>
-              <p className="text-gray-600 dark:text-gray-400 mb-6">
-                OurStreet is an open-source project. We welcome contributions
-                from the community!
-              </p>
-              <Button
-                asChild
-                size="lg"
-                className="bg-black dark:bg-white text-white dark:text-black hover:bg-gray-800 dark:hover:bg-gray-200 transform transition-all duration-300 hover:scale-105"
-              >
-                <a
-                  href="https://github.com/VibhavBilgoji/NIT_GOA_HACKATHON-1"
-                  target="_blank"
-                  rel="noopener noreferrer"
-                >
-                  <Github className="mr-2 size-5" />
-                  View on GitHub
-                </a>
-              </Button>
-            </div>
-          </div>
+
         </div>
       </main>
 
