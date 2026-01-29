@@ -4,13 +4,30 @@
 import { User, Issue, Comment, Vote } from "./types";
 import { hashPassword } from "./auth";
 
-// In-memory storage
-const db = {
+// Use global to persist database across Next.js hot reloads in development
+declare global {
+  var __db:
+    | {
+        users: Map<string, User>;
+        issues: Map<string, Issue>;
+        comments: Map<string, Comment>;
+        votes: Map<string, Vote>;
+      }
+    | undefined;
+}
+
+// In-memory storage - persists across hot reloads
+const db = global.__db || {
   users: new Map<string, User>(),
   issues: new Map<string, Issue>(),
   comments: new Map<string, Comment>(),
   votes: new Map<string, Vote>(),
 };
+
+// Save to global for persistence
+if (!global.__db) {
+  global.__db = db;
+}
 
 // Helper function to generate unique IDs
 export function generateId(): string {

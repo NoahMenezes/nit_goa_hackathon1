@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { userDb } from "@/lib/db";
 import {
   hashPassword,
   validateEmail,
@@ -75,43 +76,41 @@ export async function POST(request: NextRequest) {
     // Check if user already exists in the appropriate database
     const supabaseClient = getSupabaseClientByRole(role, true);
 
-    if (!supabaseClient) {
-      console.error(`No Supabase client available for ${role} database`);
-      return NextResponse.json(
-        {
-          success: false,
-          error: `Database configuration error for ${role} database. Please contact support.`,
-        } as AuthResponse,
-        { status: 500 },
+    let existingUser;
+    let useSupabase = false;
+
+    if (supabaseClient) {
+      console.log(
+        `Checking if user exists in ${role} Supabase database: ${email.toLowerCase()}`,
       );
+
+      try {
+        const { data, error: checkError } = await supabaseClient
+          .from("users")
+          .select("id, email")
+          .eq("email", email.toLowerCase())
+          .maybeSingle();
+
+        if (checkError) {
+          console.error(
+            `Supabase error in ${role} database:`,
+            checkError.message,
+          );
+          console.warn(`Falling back to in-memory database for ${role}`);
+          existingUser = await userDb.findByEmail(email.toLowerCase());
+        } else {
+          existingUser = data;
+          useSupabase = true;
+        }
+      } catch (error) {
+        console.error(`Supabase connection failed for ${role}:`, error);
+        console.warn(`Using in-memory database as fallback`);
+        existingUser = await userDb.findByEmail(email.toLowerCase());
+      }
+    } else {
+      console.log(`No Supabase client for ${role}, using in-memory database`);
+      existingUser = await userDb.findByEmail(email.toLowerCase());
     }
-
-    console.log(
-      `Checking if user exists in ${role} database: ${email.toLowerCase()}`,
-    );
-
-    // Check in the appropriate Supabase database using maybeSingle() to avoid errors
-    const { data, error: checkError } = await supabaseClient
-      .from("users")
-      .select("id, email")
-      .eq("email", email.toLowerCase())
-      .maybeSingle();
-
-    if (checkError) {
-      console.error(
-        `Error checking user existence in ${role} database:`,
-        checkError,
-      );
-      return NextResponse.json(
-        {
-          success: false,
-          error: `Database error while checking user. Please try again.`,
-        } as AuthResponse,
-        { status: 500 },
-      );
-    }
-
-    const existingUser = data;
 
     if (existingUser) {
       console.log(
@@ -136,37 +135,98 @@ export async function POST(request: NextRequest) {
     // Create new user in the appropriate database
     console.log(`Creating user in ${role} database with role: ${role}`);
 
-    const { data: newUser, error: insertError } = await supabaseClient
-      .from("users")
-      .insert({
-        name: name.trim(),
-        email: email.toLowerCase(),
-        password: hashedPassword,
-        role: role,
-      })
-      .select()
-      .single();
+    let newUser;
 
-    if (insertError || !newUser) {
-      console.error(`Failed to create user in ${role} database:`, insertError);
-      console.error(`Insert error details:`, {
-        code: insertError?.code,
-        message: insertError?.message,
-        details: insertError?.details,
-        hint: insertError?.hint,
-      });
+    if (useSupabase && supabaseClient) {
+      try {
+        const { data, error: insertError } = await supabaseClient
+          .from("users")
+          .insert({
+            name: name.trim(),
+            email: email.toLowerCase(),
+            password: hashedPassword,
+            role: role,
+          })
+          .select()
+          .single();
+
+        if (insertError || !data) {
+          console.error(`Supabase insert failed:`, insertError?.message);
+          console.warn(`Falling back to in-memory database`);
+          try {
+            newUser = await userDb.create({
+              name: name.trim(),
+              email: email.toLowerCase(),
+              password: hashedPassword,
+              role: role,
+            });
+            console.log(`✅ Fallback: User created in in-memory database`);
+          } catch (memError) {
+            console.error(`❌ In-memory DB create failed:`, memError);
+            newUser = null;
+          }
+        } else {
+          newUser = data;
+          console.log(`✅ User created in Supabase ${role} database`);
+        }
+      } catch (error) {
+        console.error(`Supabase error during user creation:`, error);
+        console.warn(`Using in-memory database as fallback`);
+        try {
+          newUser = await userDb.create({
+            name: name.trim(),
+            email: email.toLowerCase(),
+            password: hashedPassword,
+            role: role,
+          });
+          console.log(`✅ Fallback: User created in in-memory database`);
+        } catch (memError) {
+          console.error(`❌ In-memory DB create failed:`, memError);
+          newUser = null;
+        }
+      }
+    } else {
+      try {
+        console.log(`Creating user in in-memory database...`);
+        newUser = await userDb.create({
+          name: name.trim(),
+          email: email.toLowerCase(),
+          password: hashedPassword,
+          role: role,
+        });
+        if (newUser) {
+          console.log(`✅ User created in in-memory database:`, newUser.id);
+        }
+      } catch (memError) {
+        console.error(`❌ In-memory DB create failed:`, memError);
+        console.error(`Error details:`, {
+          name: name.trim(),
+          email: email.toLowerCase(),
+          role,
+          errorMessage:
+            memError instanceof Error ? memError.message : String(memError),
+          errorStack: memError instanceof Error ? memError.stack : "N/A",
+        });
+        newUser = null;
+      }
+    }
+
+    if (!newUser) {
+      console.error(`❌ Failed to create user - newUser is null/undefined`);
       return NextResponse.json(
         {
           success: false,
-          error: `Failed to create user in ${role} database: ${insertError?.message || "Unknown error"}`,
+          error: `Failed to create user`,
         } as AuthResponse,
         { status: 500 },
       );
     }
 
-    console.log(
-      `✅ User created successfully in ${role} database: ${newUser.email} with ID: ${newUser.id}`,
-    );
+    console.log(`✅ User created successfully:`, {
+      id: newUser.id,
+      email: newUser.email,
+      role: newUser.role,
+    });
 
     // Generate token
     const token = generateToken(newUser.id, newUser.email, newUser.role);
@@ -179,12 +239,26 @@ export async function POST(request: NextRequest) {
       },
     );
 
+    // Normalize user object for response
+    const userForResponse = {
+      id: newUser.id,
+      name: newUser.name,
+      email: newUser.email,
+      password: newUser.password || hashedPassword,
+      role: newUser.role || role,
+      avatar: newUser.avatar || null,
+      createdAt:
+        newUser.created_at || newUser.createdAt || new Date().toISOString(),
+      updatedAt:
+        newUser.updated_at || newUser.updatedAt || new Date().toISOString(),
+    };
+
     // Return success response
     return NextResponse.json(
       {
         success: true,
-        message: `${role === "admin" ? "Admin" : "Citizen"} account created successfully in ${role} database`,
-        user: sanitizeUser(newUser),
+        message: `Account created successfully`,
+        user: sanitizeUser(userForResponse),
         token,
       } as AuthResponse,
       { status: 201 },

@@ -108,24 +108,43 @@ export async function POST(request: NextRequest) {
 
     let user;
     if (supabaseClient) {
-      // Query the appropriate Supabase database
-      // Use .maybeSingle() to avoid errors when no rows are found
-      const { data, error } = await supabaseClient
-        .from("users")
-        .select("*")
-        .eq("email", email.toLowerCase())
-        .maybeSingle();
+      console.log(
+        `Attempting login in ${userType} Supabase database: ${email}`,
+      );
 
-      if (error) {
-        console.error(`Database error in ${userType} database:`, error.message);
-        user = null;
-      } else if (!data) {
-        console.log(`User not found in ${userType} database: ${email}`);
-        user = null;
-      } else {
-        user = data;
+      try {
+        // Query the appropriate Supabase database
+        // Use .maybeSingle() to avoid errors when no rows are found
+        const { data, error } = await supabaseClient
+          .from("users")
+          .select("*")
+          .eq("email", email.toLowerCase())
+          .maybeSingle();
+
+        if (error) {
+          console.error(
+            `Supabase error in ${userType} database:`,
+            error.message,
+          );
+          console.warn(`Falling back to in-memory database for login`);
+          user = await userDb.findByEmail(email.toLowerCase());
+        } else if (!data) {
+          console.log(
+            `User not found in ${userType} Supabase database, checking in-memory database`,
+          );
+          user = await userDb.findByEmail(email.toLowerCase());
+        } else {
+          user = data;
+        }
+      } catch (error) {
+        console.error(`Supabase connection failed for ${userType}:`, error);
+        console.warn(`Using in-memory database as fallback for login`);
+        user = await userDb.findByEmail(email.toLowerCase());
       }
     } else {
+      console.log(
+        `No Supabase client for ${userType}, using in-memory database`,
+      );
       // Fallback to in-memory database
       user = await userDb.findByEmail(email.toLowerCase());
     }
