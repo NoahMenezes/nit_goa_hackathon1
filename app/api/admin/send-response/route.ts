@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { verify } from "jsonwebtoken";
-import { userDb, generateId } from "@/lib/db";
+import { userDb, generateId, issueDb } from "@/lib/db";
 
 const JWT_SECRET =
   process.env.JWT_SECRET || "your-secret-key-change-in-production";
@@ -78,7 +78,52 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Create a response record that will be visible to all users
+    // Find the user by email
+    const allUsers = await userDb.getAll();
+    const targetUser = allUsers.find(
+      (u) => u.email.toLowerCase() === email.toLowerCase().trim(),
+    );
+
+    if (!targetUser) {
+      return NextResponse.json(
+        { success: false, message: "User not found with provided email" },
+        { status: 404 },
+      );
+    }
+
+    // Get all issues from the user
+    const allIssues = await issueDb.getAll();
+    const userIssues = allIssues
+      .filter((issue) => issue.userId === targetUser.id)
+      .sort(
+        (a, b) =>
+          new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime(),
+      );
+
+    if (userIssues.length === 0) {
+      return NextResponse.json(
+        { success: false, message: "No issues found for this user" },
+        { status: 404 },
+      );
+    }
+
+    // Get the most recent issue
+    const mostRecentIssue = userIssues[0];
+
+    // Add admin response as a comment to the issue
+    const comment = {
+      id: generateId(),
+      issueId: mostRecentIssue.id,
+      userId: decoded.userId,
+      userName: `${adminName || "Admin"} (Admin Response)`,
+      content: response.trim(),
+      createdAt: new Date().toISOString(),
+    };
+
+    mostRecentIssue.comments.push(comment);
+    await issueDb.update(mostRecentIssue.id, mostRecentIssue);
+
+    // Create a response record for tracking
     const responseDocument: AdminResponse = {
       id: generateId(),
       recipientEmail: email.toLowerCase().trim(),
@@ -93,24 +138,21 @@ export async function POST(request: NextRequest) {
     // Store the response
     adminResponses.push(responseDocument);
 
-    // Get all users to send notification to all accounts
-    const allUsers = await userDb.getAll();
-
-    // In a real implementation, you would store these in a notifications table
-    // For now, we're just storing the response which can be queried by all users
     console.log(
-      `Admin response sent to ${email} - visible to all ${allUsers.length} users`,
+      `Admin response added as comment to issue ${mostRecentIssue.id} for user ${targetUser.email}`,
     );
 
     return NextResponse.json(
       {
         success: true,
-        message: "Response sent successfully to all users",
+        message:
+          "Response sent successfully and added to user's most recent issue",
         data: {
           responseId: responseDocument.id,
           recipientEmail: email.toLowerCase().trim(),
+          issueId: mostRecentIssue.id,
+          issueTitle: mostRecentIssue.title,
           sentAt: responseDocument.createdAt,
-          visibleToUsers: allUsers.length,
         },
       },
       { status: 200 },

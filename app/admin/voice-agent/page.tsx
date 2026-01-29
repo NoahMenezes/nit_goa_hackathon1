@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/contexts/auth-context";
 import {
@@ -17,14 +17,27 @@ import { Label } from "@/components/ui/label";
 import Silk from "@/components/ui/silk/Silk";
 import { Skeleton } from "@/components/ui/skeleton";
 import { toast } from "sonner";
-import { Send, Mail, MessageSquare, Loader2 } from "lucide-react";
+import {
+  Send,
+  Mail,
+  MessageSquare,
+  Loader2,
+  Mic,
+  MicOff,
+  Copy,
+  Check,
+} from "lucide-react";
 
 export default function AdminVoiceAgentPage() {
   const router = useRouter();
   const { user, isAuthenticated, isLoading } = useAuth();
   const [email, setEmail] = useState("");
-  const [response, setResponse] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isListening, setIsListening] = useState(false);
+  const [transcript, setTranscript] = useState("");
+  const [manualResponse, setManualResponse] = useState("");
+  const [isCopied, setIsCopied] = useState(false);
+  const recognitionRef = useRef<unknown>(null);
 
   useEffect(() => {
     // Redirect if not authenticated or not admin
@@ -32,6 +45,90 @@ export default function AdminVoiceAgentPage() {
       router.push("/");
     }
   }, [isAuthenticated, user, isLoading, router]);
+
+  // Initialize speech recognition
+  useEffect(() => {
+    if (typeof window !== "undefined") {
+      const SpeechRecognitionAPI =
+        (window as unknown as { SpeechRecognition?: unknown })
+          .SpeechRecognition ||
+        (window as unknown as { webkitSpeechRecognition?: unknown })
+          .webkitSpeechRecognition;
+
+      if (SpeechRecognitionAPI) {
+        const recognition = new (SpeechRecognitionAPI as new () => {
+          continuous: boolean;
+          interimResults: boolean;
+          lang: string;
+          onresult: ((event: unknown) => void) | null;
+          onerror: ((event: unknown) => void) | null;
+          onend: (() => void) | null;
+          start: () => void;
+          stop: () => void;
+        })();
+
+        recognition.continuous = true;
+        recognition.interimResults = true;
+        recognition.lang = "en-US";
+
+        recognition.onresult = (event: unknown) => {
+          const resultEvent = event as {
+            resultIndex: number;
+            results: Array<{
+              isFinal: boolean;
+              [index: number]: { transcript: string };
+            }>;
+          };
+
+          let finalTranscript = "";
+
+          for (
+            let i = resultEvent.resultIndex;
+            i < resultEvent.results.length;
+            i++
+          ) {
+            const transcriptPiece = resultEvent.results[i][0].transcript;
+            if (resultEvent.results[i].isFinal) {
+              finalTranscript += transcriptPiece + " ";
+            }
+          }
+
+          if (finalTranscript) {
+            setTranscript((prev) => prev + finalTranscript);
+            setManualResponse((prev) => prev + finalTranscript);
+          }
+        };
+
+        recognition.onerror = (event: unknown) => {
+          const errorEvent = event as { error: string };
+          console.error("Speech recognition error:", errorEvent.error);
+          if (errorEvent.error === "no-speech") {
+            toast.error("No speech detected. Please try again.");
+          } else if (errorEvent.error === "not-allowed") {
+            toast.error(
+              "Microphone access denied. Please enable it in your browser settings.",
+            );
+          } else {
+            toast.error("Speech recognition error: " + errorEvent.error);
+          }
+          setIsListening(false);
+        };
+
+        recognition.onend = () => {
+          setIsListening(false);
+        };
+
+        recognitionRef.current = recognition;
+      }
+    }
+
+    return () => {
+      const recognition = recognitionRef.current as { stop: () => void } | null;
+      if (recognition) {
+        recognition.stop();
+      }
+    };
+  }, []);
 
   // Show loading state
   if (isLoading || !user) {
@@ -53,13 +150,20 @@ export default function AdminVoiceAgentPage() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
+    console.log("Submit button clicked!");
+    console.log("Email:", email);
+    console.log("Transcript:", transcript);
+    console.log("Manual Response:", manualResponse);
+
     if (!email.trim()) {
       toast.error("Please enter an email address");
       return;
     }
 
-    if (!response.trim()) {
-      toast.error("Please enter a response");
+    const responseText = manualResponse.trim() || transcript.trim();
+
+    if (!responseText) {
+      toast.error("Please provide a response (voice or text)");
       return;
     }
 
@@ -70,12 +174,14 @@ export default function AdminVoiceAgentPage() {
       return;
     }
 
+    console.log("Sending response:", responseText);
     setIsSubmitting(true);
 
     try {
       const token = localStorage.getItem("citypulse_auth_token");
+      console.log("Auth token present:", !!token);
 
-      // Send the response to all user accounts
+      // Send the response to the user's most recent issue
       const apiResponse = await fetch("/api/admin/send-response", {
         method: "POST",
         headers: {
@@ -84,29 +190,93 @@ export default function AdminVoiceAgentPage() {
         },
         body: JSON.stringify({
           email: email.trim(),
-          response: response.trim(),
+          response: responseText,
           adminName: user?.name || "Admin",
         }),
       });
 
+      console.log("API Response status:", apiResponse.status);
+
       if (apiResponse.ok) {
         const data = await apiResponse.json();
+        console.log("API Response data:", data);
         if (data.success) {
-          toast.success("Response sent successfully to all users!");
+          toast.success(
+            `Response sent successfully to issue: ${data.data.issueTitle}!`,
+            { duration: 5000 },
+          );
           // Clear the form
           setEmail("");
-          setResponse("");
+          setTranscript("");
+          setManualResponse("");
         } else {
+          console.error("API returned success=false:", data.message);
           toast.error(data.message || "Failed to send response");
         }
       } else {
-        toast.error("Failed to send response. Please try again.");
+        const errorData = await apiResponse.json();
+        console.error("API error response:", errorData);
+        toast.error(
+          errorData.message || "Failed to send response. Please try again.",
+        );
       }
     } catch (error) {
       console.error("Error sending response:", error);
-      toast.error("An error occurred while sending the response");
+      toast.error(
+        `An error occurred: ${error instanceof Error ? error.message : "Unknown error"}`,
+      );
     } finally {
       setIsSubmitting(false);
+    }
+  };
+
+  const toggleListening = () => {
+    const recognition = recognitionRef.current as {
+      start: () => void;
+      stop: () => void;
+    } | null;
+
+    if (!recognition) {
+      toast.error("Speech recognition is not supported in your browser.");
+      return;
+    }
+
+    if (isListening) {
+      recognition.stop();
+      setIsListening(false);
+    } else {
+      try {
+        recognition.start();
+        setIsListening(true);
+        toast.success("Listening... Speak now");
+      } catch (error) {
+        console.error("Error starting recognition:", error);
+        toast.error("Failed to start speech recognition");
+      }
+    }
+  };
+
+  const copyTranscript = async () => {
+    try {
+      await navigator.clipboard.writeText(transcript);
+      setIsCopied(true);
+      toast.success("Transcript copied to clipboard!");
+      setTimeout(() => setIsCopied(false), 2000);
+    } catch (error) {
+      console.error("Error copying to clipboard:", error);
+      toast.error("Failed to copy transcript");
+    }
+  };
+
+  const clearAll = () => {
+    setEmail("");
+    setTranscript("");
+    setManualResponse("");
+    if (isListening) {
+      const recognition = recognitionRef.current as { stop: () => void } | null;
+      if (recognition) {
+        recognition.stop();
+      }
     }
   };
 
@@ -133,8 +303,8 @@ export default function AdminVoiceAgentPage() {
             Admin Voice Agent Response
           </h1>
           <p className="text-gray-600 dark:text-gray-400 text-lg max-w-2xl mx-auto">
-            Generate and send responses to users through the voice agent system.
-            Your response will be stored and sent to all user accounts.
+            Send voice responses to users. Your response will be added as a
+            comment to the user&apos;s most recent reported issue.
           </p>
         </div>
 
@@ -146,7 +316,7 @@ export default function AdminVoiceAgentPage() {
               Generate Response
             </CardTitle>
             <CardDescription>
-              Enter the recipient&apos;s email and compose your response below
+              Enter the user&apos;s email and record your voice response
             </CardDescription>
           </CardHeader>
           <CardContent>
@@ -170,31 +340,103 @@ export default function AdminVoiceAgentPage() {
                   disabled={isSubmitting}
                 />
                 <p className="text-sm text-gray-500 dark:text-gray-400">
-                  Enter the email address of the user you&apos;re responding to
+                  The response will be added to this user&apos;s most recent
+                  issue
                 </p>
               </div>
 
-              {/* Response Textarea */}
+              {/* Voice Input Section */}
+              <div className="space-y-2">
+                <Label className="flex items-center gap-2 text-base">
+                  <Mic className="h-4 w-4" />
+                  Voice Input
+                </Label>
+                <div className="flex gap-2">
+                  <Button
+                    type="button"
+                    variant={isListening ? "destructive" : "default"}
+                    onClick={toggleListening}
+                    disabled={isSubmitting}
+                    className="flex-1"
+                  >
+                    {isListening ? (
+                      <>
+                        <MicOff className="mr-2 h-4 w-4" />
+                        Stop Listening
+                      </>
+                    ) : (
+                      <>
+                        <Mic className="mr-2 h-4 w-4" />
+                        Start Voice Input
+                      </>
+                    )}
+                  </Button>
+                </div>
+                {isListening && (
+                  <div className="flex items-center gap-2 text-sm text-red-600 dark:text-red-400 animate-pulse">
+                    <div className="h-2 w-2 rounded-full bg-red-600 dark:bg-red-400" />
+                    Recording...
+                  </div>
+                )}
+              </div>
+
+              {/* Transcript Display */}
+              {transcript && (
+                <div className="space-y-2">
+                  <div className="flex items-center justify-between">
+                    <Label className="flex items-center gap-2 text-base">
+                      <MessageSquare className="h-4 w-4" />
+                      Voice Transcript
+                    </Label>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      onClick={copyTranscript}
+                      disabled={!transcript}
+                    >
+                      {isCopied ? (
+                        <>
+                          <Check className="mr-2 h-3 w-3" />
+                          Copied!
+                        </>
+                      ) : (
+                        <>
+                          <Copy className="mr-2 h-3 w-3" />
+                          Copy
+                        </>
+                      )}
+                    </Button>
+                  </div>
+                  <div className="p-4 rounded-lg border bg-muted/50 min-h-25 max-h-50 overflow-y-auto">
+                    <p className="text-sm whitespace-pre-wrap">{transcript}</p>
+                  </div>
+                  <p className="text-xs text-gray-500 dark:text-gray-400">
+                    This transcript will be sent as your response
+                  </p>
+                </div>
+              )}
+
+              {/* Manual Response Input */}
               <div className="space-y-2">
                 <Label
-                  htmlFor="response"
+                  htmlFor="manualResponse"
                   className="flex items-center gap-2 text-base"
                 >
                   <MessageSquare className="h-4 w-4" />
-                  Your Response
+                  Response (Edit or Type Manually)
                 </Label>
                 <Textarea
-                  id="response"
-                  placeholder="Type your response here... This message will be sent to all users and stored in their accounts."
-                  value={response}
-                  onChange={(e) => setResponse(e.target.value)}
-                  rows={12}
+                  id="manualResponse"
+                  placeholder="Your voice transcript appears here automatically, or you can type your response manually..."
+                  value={manualResponse}
+                  onChange={(e) => setManualResponse(e.target.value)}
+                  rows={8}
                   className="text-base resize-none"
                   disabled={isSubmitting}
                 />
                 <p className="text-sm text-gray-500 dark:text-gray-400">
-                  Compose your response. This will be delivered to all user
-                  accounts.
+                  Edit the voice transcript or type your response directly
                 </p>
               </div>
 
@@ -203,17 +445,18 @@ export default function AdminVoiceAgentPage() {
                 <Button
                   type="button"
                   variant="outline"
-                  onClick={() => {
-                    setEmail("");
-                    setResponse("");
-                  }}
+                  onClick={clearAll}
                   disabled={isSubmitting}
                 >
-                  Clear
+                  Clear All
                 </Button>
                 <Button
                   type="submit"
-                  disabled={isSubmitting}
+                  disabled={
+                    isSubmitting ||
+                    !email.trim() ||
+                    (!manualResponse.trim() && !transcript.trim())
+                  }
                   className="min-w-30"
                 >
                   {isSubmitting ? (
@@ -251,14 +494,15 @@ export default function AdminVoiceAgentPage() {
                     • Enter the email address of the user you&apos;re responding
                     to
                   </li>
-                  <li>• Compose your response in the text area below</li>
+                  <li>• Use voice input to dictate your response</li>
+                  <li>• View and copy your voice transcript in real-time</li>
                   <li>
-                    • Click &quot;Submit Response&quot; to send it to all user
-                    accounts
+                    • Click &quot;Submit Response&quot; to add your response as
+                    a comment
                   </li>
                   <li>
-                    • Users will be able to see this response in their account
-                    dashboard
+                    • The response will appear in the user&apos;s most recent
+                    issue details
                   </li>
                 </ul>
               </div>
