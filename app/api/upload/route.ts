@@ -102,10 +102,14 @@ async function uploadToSupabase(file: File, userId: string): Promise<string> {
   const fileExt = file.name.split(".").pop() || "jpg";
   const fileName = `${userId}/${timestamp}-${randomString}.${fileExt}`;
 
+  // Convert File to ArrayBuffer for upload
+  const arrayBuffer = await file.arrayBuffer();
+  const uint8Array = new Uint8Array(arrayBuffer);
+
   // Upload to Supabase Storage
   const { error } = await supabase.storage
     .from("issue-photos")
-    .upload(fileName, file, {
+    .upload(fileName, uint8Array, {
       contentType: file.type,
       cacheControl: "3600",
       upsert: false,
@@ -113,6 +117,16 @@ async function uploadToSupabase(file: File, userId: string): Promise<string> {
 
   if (error) {
     console.error("Supabase upload error:", error);
+    // Check if bucket doesn't exist
+    if (
+      error.message.includes("Bucket not found") ||
+      error.message.includes("bucket")
+    ) {
+      throw new Error(
+        "Storage bucket 'issue-photos' not found. Please create it in your Supabase dashboard: " +
+          "Storage > New bucket > Name: 'issue-photos' > Check 'Public bucket' > Create",
+      );
+    }
     throw new Error(`Failed to upload to Supabase: ${error.message}`);
   }
 
@@ -187,14 +201,20 @@ export async function POST(request: NextRequest) {
 
         // Try Cloudinary first, fall back to Supabase
         if (CLOUDINARY_CLOUD_NAME && CLOUDINARY_UPLOAD_PRESET) {
+          console.log("📤 Uploading to Cloudinary...");
           uploadedUrl = await uploadToCloudinary(file);
         } else if (SUPABASE_URL && SUPABASE_ANON_KEY) {
+          console.log("📤 Uploading to Supabase Storage...");
           uploadedUrl = await uploadToSupabase(file, userId);
         } else {
+          console.error("❌ No storage provider configured");
           throw new Error(
-            "No storage provider configured. Please set up Cloudinary or Supabase Storage.",
+            "No storage provider configured. Please set up Cloudinary or Supabase Storage. " +
+              "Add NEXT_PUBLIC_CLOUDINARY_CLOUD_NAME and NEXT_PUBLIC_CLOUDINARY_UPLOAD_PRESET, " +
+              "or NEXT_PUBLIC_SUPABASE_URL and NEXT_PUBLIC_SUPABASE_ANON_KEY to your .env.local file.",
           );
         }
+        console.log("✅ Upload successful:", uploadedUrl);
 
         uploadedUrls.push(uploadedUrl);
       } catch (uploadError) {
