@@ -2,6 +2,7 @@ import React, { forwardRef, useMemo, useRef, useLayoutEffect } from "react";
 import { Canvas, useFrame, useThree, RootState } from "@react-three/fiber";
 import { Color, Mesh, ShaderMaterial } from "three";
 import { IUniform } from "three";
+import { useTheme } from "next-themes";
 
 type NormalizedRGB = [number, number, number];
 
@@ -130,6 +131,7 @@ export interface SilkProps {
   color?: string;
   noiseIntensity?: number;
   rotation?: number;
+  backgroundFlow?: "dark" | "light" | "auto";
 }
 
 const Silk: React.FC<SilkProps> = ({
@@ -138,8 +140,10 @@ const Silk: React.FC<SilkProps> = ({
   color = "#5227FF",
   noiseIntensity = 1.5,
   rotation = 0,
+  backgroundFlow = "auto",
 }) => {
   const meshRef = useRef<Mesh>(null);
+  const { theme } = useTheme();
 
   const uniforms = useMemo<SilkUniforms>(
     () => ({
@@ -153,6 +157,14 @@ const Silk: React.FC<SilkProps> = ({
     [speed, scale, noiseIntensity, color, rotation],
   );
 
+  // Determine background flow color based on theme and prop
+  const getBackgroundFlow = () => {
+    if (backgroundFlow === "light") return "white";
+    if (backgroundFlow === "dark") return "black";
+    // Auto mode: white for light theme, black for dark theme
+    return theme === "light" ? "white" : "black";
+  };
+
   return (
     <div
       style={{
@@ -160,6 +172,7 @@ const Silk: React.FC<SilkProps> = ({
         height: "100%",
         position: "absolute",
         inset: 0,
+        background: getBackgroundFlow(),
       }}
     >
       <Canvas

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useRouter } from "next/navigation";
 import Image from "next/image";
 import { MapPin, AlertCircle, CheckCircle, Clock } from "lucide-react";
@@ -9,7 +9,7 @@ import { InteractiveMap } from "@/components/interactive-map";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { BorderBeam } from "@/components/magicui/border-beam";
 import { Issue } from "@/lib/types";
-import { Silk } from "@/components/ui/silk";
+import GradientBlinds from "@/components/ui/gradient-blinds";
 
 import toast from "react-hot-toast";
 import { ProtectedRoute } from "@/components/protected-route";
@@ -53,6 +53,7 @@ function MapPageContent() {
   const [isLoading, setIsLoading] = useState(true);
   const [selectedIssue, setSelectedIssue] = useState<string | null>(null);
   const [focusOnMarker, setFocusOnMarker] = useState<string | null>(null);
+  const gradientBlindsContainerRef = useRef<HTMLDivElement>(null);
 
   // Fetch issues from API
   useEffect(() => {
@@ -121,17 +122,47 @@ function MapPageContent() {
   };
 
   return (
-    <div className="flex min-h-screen flex-col bg-white dark:bg-black relative">
-      {/* Silk Background */}
-      <div className="fixed inset-0 w-full h-full -z-10 opacity-60 dark:opacity-50">
-        <Silk
-          speed={5}
-          scale={1}
-          color="#5227FF"
-          noiseIntensity={1.5}
-          rotation={0}
+    <div
+      className="flex min-h-screen flex-col relative overflow-hidden"
+      onMouseMove={(e) => {
+        // Forward mouse events to GradientBlinds even when over content
+        if (gradientBlindsContainerRef.current) {
+          const container = gradientBlindsContainerRef.current;
+          const canvas = container.querySelector("canvas");
+          if (canvas) {
+            const event = new PointerEvent("pointermove", {
+              clientX: e.clientX,
+              clientY: e.clientY,
+              bubbles: true,
+            });
+            canvas.dispatchEvent(event);
+          }
+        }
+      }}
+    >
+      {/* Gradient Blinds Background */}
+      <div
+        ref={gradientBlindsContainerRef}
+        className="fixed inset-0 w-full h-full z-0 pointer-events-none"
+      >
+        <GradientBlinds
+          gradientColors={["#FF00FF", "#00FFFF", "#FF0080", "#8000FF"]}
+          angle={0}
+          noise={0.4}
+          blindCount={12}
+          blindMinWidth={50}
+          spotlightRadius={0.9}
+          spotlightSoftness={0.5}
+          spotlightOpacity={2.5}
+          mouseDampening={0.08}
+          distortAmount={0}
+          shineDirection="left"
+          mixBlendMode="screen"
         />
       </div>
+
+      {/* Glassmorphism overlay for readability */}
+      <div className="fixed inset-0 w-full h-full z-1 bg-linear-to-br from-white/40 via-white/30 to-white/50 dark:from-black/40 dark:via-black/30 dark:to-black/50 backdrop-blur-md pointer-events-none" />
 
       {/* Main Content */}
       <main className="flex-1 relative z-10">

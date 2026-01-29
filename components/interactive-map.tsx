@@ -377,7 +377,7 @@ export function InteractiveMap({
           <div className="absolute top-4 left-1/2 -translate-x-1/2 bg-white dark:bg-gray-800 shadow-lg rounded-lg p-3 max-w-sm z-10 border border-gray-200 dark:border-gray-700">
             <div className="flex items-start gap-3">
               <svg
-                className="w-5 h-5 text-yellow-500 flex-shrink-0 mt-0.5"
+                className="w-5 h-5 text-yellow-500 shrink-0 mt-0.5"
                 fill="none"
                 stroke="currentColor"
                 viewBox="0 0 24 24"

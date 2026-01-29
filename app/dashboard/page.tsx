@@ -14,14 +14,14 @@ import {
   RefreshCw,
 } from "lucide-react";
 import { toast } from "sonner";
-import { useEffect } from "react";
+import { useEffect, useRef } from "react";
 import { NeonGradientCard } from "@/components/magicui/neon-gradient-card";
 import { RotatingText } from "@/components/magicui/rotating-text";
 import { useDashboard } from "@/contexts/dashboard-context";
 import { Button } from "@/components/ui/button";
 import { BasicMapExample } from "@/components/my-map";
 import { ProtectedRoute } from "@/components/protected-route";
-import { Silk } from "@/components/ui/silk";
+import GradientBlinds from "@/components/ui/gradient-blinds";
 
 export default function Page() {
   return (
@@ -40,6 +40,7 @@ function DashboardContent() {
     isLoading,
     refreshDashboard,
   } = useDashboard();
+  const gradientBlindsContainerRef = useRef<HTMLDivElement>(null);
 
   // Removed SLA alerts notification logic as SLA feature is not implemented
   useEffect(() => {
@@ -61,17 +62,47 @@ function DashboardContent() {
   }, [stats.criticalIssuesPending]);
 
   return (
-    <div className="flex flex-col min-h-screen relative">
-      {/* Silk Background */}
-      <div className="fixed inset-0 w-full h-full -z-10 opacity-60 dark:opacity-50">
-        <Silk
-          speed={5}
-          scale={1}
-          color="#5227FF"
-          noiseIntensity={1.5}
-          rotation={0}
+    <div
+      className="flex flex-col min-h-screen relative overflow-hidden"
+      onMouseMove={(e) => {
+        // Forward mouse events to GradientBlinds even when over content
+        if (gradientBlindsContainerRef.current) {
+          const container = gradientBlindsContainerRef.current;
+          const canvas = container.querySelector("canvas");
+          if (canvas) {
+            const event = new PointerEvent("pointermove", {
+              clientX: e.clientX,
+              clientY: e.clientY,
+              bubbles: true,
+            });
+            canvas.dispatchEvent(event);
+          }
+        }
+      }}
+    >
+      {/* Gradient Blinds Background */}
+      <div
+        ref={gradientBlindsContainerRef}
+        className="fixed inset-0 w-full h-full z-0 pointer-events-none"
+      >
+        <GradientBlinds
+          gradientColors={["#FF00FF", "#00FFFF", "#FF0080", "#8000FF"]}
+          angle={0}
+          noise={0.4}
+          blindCount={12}
+          blindMinWidth={50}
+          spotlightRadius={0.9}
+          spotlightSoftness={0.5}
+          spotlightOpacity={2.5}
+          mouseDampening={0.08}
+          distortAmount={0}
+          shineDirection="left"
+          mixBlendMode="screen"
         />
       </div>
+
+      {/* Glassmorphism overlay for readability */}
+      <div className="fixed inset-0 w-full h-full z-1 bg-linear-to-br from-white/40 via-white/30 to-white/50 dark:from-black/40 dark:via-black/30 dark:to-black/50 backdrop-blur-md pointer-events-none" />
 
       <div className="flex flex-1 flex-col relative z-10">
         <div className="@container/main flex flex-1 flex-col gap-2">

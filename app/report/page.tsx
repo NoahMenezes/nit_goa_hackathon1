@@ -15,6 +15,8 @@ import {
   Sparkles,
   Loader2,
   AlertCircle,
+  Mic,
+  MicOff,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -41,6 +43,7 @@ import toast from "react-hot-toast";
 import { WARDS, IssueCategory } from "@/lib/types";
 import { InteractiveMap } from "@/components/interactive-map";
 import GradientBlinds from "@/components/ui/gradient-blinds";
+import { useVoiceRecognition } from "@/hooks/use-voice-recognition";
 
 interface FilePreview {
   file: File;
@@ -85,6 +88,23 @@ function ReportIssueContent() {
     description: "",
     ward: "",
   });
+
+  // Voice recognition hook
+  const {
+    isListening,
+    transcript,
+    startListening,
+    stopListening,
+    resetTranscript,
+    error: voiceError,
+  } = useVoiceRecognition();
+
+  // Update description when transcript changes
+  useEffect(() => {
+    if (transcript) {
+      setFormData((prev) => ({ ...prev, description: transcript }));
+    }
+  }, [transcript]);
 
   // Check authentication after loading completes
   useEffect(() => {
@@ -420,11 +440,6 @@ function ReportIssueContent() {
       return;
     }
 
-    if (formData.description.length < 20) {
-      toast.error("Description must be at least 20 characters");
-      return;
-    }
-
     // If no category is selected, automatically enable AI mode and categorize
     if (!formData.category) {
       if (!useAI) {
@@ -743,23 +758,93 @@ function ReportIssueContent() {
                 </p>
               </div>
 
-              {/* Description */}
+              {/* Description with Voice Input */}
               <div className="space-y-2">
-                <Label htmlFor="description">Description *</Label>
-                <Textarea
-                  id="description"
-                  placeholder="Describe the issue in detail... Include information like when you first noticed it, how severe it is, and any other relevant details."
-                  rows={6}
-                  value={formData.description}
-                  onChange={(e) =>
-                    setFormData({ ...formData, description: e.target.value })
-                  }
-                  required
-                  className="bg-white dark:bg-black resize-none"
-                />
-                <p className="text-xs text-gray-500 dark:text-gray-400">
-                  Minimum 20 characters ({formData.description.length}/20)
-                </p>
+                <div className="flex items-center justify-between">
+                  <Label htmlFor="description">Description *</Label>
+                  <Button
+                    type="button"
+                    variant={isListening ? "destructive" : "outline"}
+                    size="sm"
+                    onClick={isListening ? stopListening : startListening}
+                    className="flex items-center gap-2"
+                  >
+                    {isListening ? (
+                      <>
+                        <MicOff className="h-4 w-4" />
+                        Stop Recording
+                      </>
+                    ) : (
+                      <>
+                        <Mic className="h-4 w-4" />
+                        Voice Input
+                      </>
+                    )}
+                  </Button>
+                </div>
+
+                <div className="relative">
+                  <Textarea
+                    id="description"
+                    placeholder="Describe the issue in detail... Include information like when you first noticed it, how severe it is, and any other relevant details."
+                    rows={6}
+                    value={formData.description}
+                    onChange={(e) =>
+                      setFormData({ ...formData, description: e.target.value })
+                    }
+                    required
+                    className="bg-white dark:bg-black resize-none"
+                  />
+
+                  {/* Voice Animation Overlay */}
+                  {isListening && (
+                    <div className="absolute inset-2 pointer-events-none">
+                      <div className="bg-blue-50/90 dark:bg-blue-950/90 backdrop-blur-sm rounded p-2 border-2 border-blue-200 dark:border-blue-800">
+                        <div className="text-sm text-blue-800 dark:text-blue-200 mb-1 font-semibold flex items-center gap-2">
+                          <span className="animate-pulse">🎤</span>
+                          Listening...
+                        </div>
+                        {transcript && (
+                          <div className="max-h-32 overflow-auto text-sm text-blue-900 dark:text-blue-100 mt-2">
+                            {transcript}
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Voice Error Message */}
+                  {voiceError && (
+                    <div className="absolute inset-2 pointer-events-none">
+                      <div className="bg-red-50/90 dark:bg-red-950/90 backdrop-blur-sm rounded p-2 border-2 border-red-200 dark:border-red-800">
+                        <div className="text-sm text-red-800 dark:text-red-200 font-semibold">
+                          ⚠️ {voiceError}
+                        </div>
+                      </div>
+                    </div>
+                  )}
+                </div>
+
+                <div className="flex items-center justify-between text-xs text-gray-500 dark:text-gray-400">
+                  <span>Characters: {formData.description.length}</span>
+                  {isListening && (
+                    <span className="flex items-center gap-1 text-blue-600 dark:text-blue-400">
+                      <span className="animate-pulse">🎤</span>
+                      Recording...
+                    </span>
+                  )}
+                  {transcript && !isListening && (
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="sm"
+                      onClick={resetTranscript}
+                      className="h-6 px-2 text-xs"
+                    >
+                      Clear Voice Input
+                    </Button>
+                  )}
+                </div>
               </div>
 
               {/* Multi-Photo Upload */}

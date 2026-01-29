@@ -6,6 +6,8 @@ import { Github, Linkedin, Mail, Users, MapPin } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { NeonGradientCard } from "@/components/magicui/neon-gradient-card";
 import GSAPTextAnimate from "@/components/gsap-text-animate";
+import GradientBlinds from "@/components/ui/gradient-blinds";
+import { useRef } from "react";
 
 const teamMembers = [
   {
@@ -29,9 +31,52 @@ const teamMembers = [
 ];
 
 export default function TeamPage() {
+  const gradientBlindsContainerRef = useRef<HTMLDivElement>(null);
+
   return (
-    <div className="flex min-h-screen flex-col bg-white dark:bg-black">
-      <main className="flex-1">
+    <div
+      className="flex min-h-screen flex-col relative overflow-hidden"
+      onMouseMove={(e) => {
+        // Forward mouse events to GradientBlinds even when over content
+        if (gradientBlindsContainerRef.current) {
+          const container = gradientBlindsContainerRef.current;
+          const canvas = container.querySelector("canvas");
+          if (canvas) {
+            const event = new PointerEvent("pointermove", {
+              clientX: e.clientX,
+              clientY: e.clientY,
+              bubbles: true,
+            });
+            canvas.dispatchEvent(event);
+          }
+        }
+      }}
+    >
+      {/* Gradient Blinds Background */}
+      <div
+        ref={gradientBlindsContainerRef}
+        className="fixed inset-0 w-full h-full z-0 pointer-events-none"
+      >
+        <GradientBlinds
+          gradientColors={["#FF00FF", "#00FFFF", "#FF0080", "#8000FF"]}
+          angle={0}
+          noise={0.4}
+          blindCount={12}
+          blindMinWidth={50}
+          spotlightRadius={0.9}
+          spotlightSoftness={0.5}
+          spotlightOpacity={2.5}
+          mouseDampening={0.08}
+          distortAmount={0}
+          shineDirection="left"
+          mixBlendMode="screen"
+        />
+      </div>
+
+      {/* Glassmorphism overlay for readability */}
+      <div className="fixed inset-0 w-full h-full z-1 bg-linear-to-br from-white/40 via-white/30 to-white/50 dark:from-black/40 dark:via-black/30 dark:to-black/50 backdrop-blur-md pointer-events-none" />
+
+      <main className="flex-1 relative z-10">
         <div className="container mx-auto px-4 py-16">
           {/* Page Header */}
           <div className="mb-16 text-center">
@@ -51,11 +96,11 @@ export default function TeamPage() {
           </div>
 
           {/* Team Members Grid */}
-          <div className="grid gap-10 md:grid-cols-2 lg:grid-cols-3 mb-16 max-w-6xl mx-auto">
+          <div className="flex flex-wrap justify-center gap-10 mb-16 max-w-6xl mx-auto">
             {teamMembers.map((member, index) => (
               <div
                 key={index}
-                className="group relative overflow-hidden rounded-2xl"
+                className="group relative overflow-hidden rounded-2xl w-full max-w-sm"
               >
                 <NeonGradientCard className="h-full">
                   <div className="flex flex-col items-center text-center p-8">
@@ -80,7 +125,9 @@ export default function TeamPage() {
 
                     {/* Role with Color Transition */}
                     <p className="text-base font-semibold text-blue-600 dark:text-blue-400 mb-3 transform transition-all duration-300 group-hover:text-purple-600 dark:group-hover:text-purple-400">
-                      <GSAPTextAnimate duration={1}>{member.role}</GSAPTextAnimate>
+                      <GSAPTextAnimate duration={1}>
+                        {member.role}
+                      </GSAPTextAnimate>
                     </p>
 
                     {/* Bio with Fade Effect */}
@@ -181,8 +228,6 @@ export default function TeamPage() {
               ))}
             </div>
           </div>
-
-
         </div>
       </main>
 

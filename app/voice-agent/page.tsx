@@ -2,7 +2,7 @@
 
 import React from "react";
 import { Card } from "@/components/ui/card";
-import { useCallback, useState } from "react";
+import { useCallback, useState, useRef } from "react";
 import { useConversation } from "@elevenlabs/react";
 import { AnimatePresence, motion } from "framer-motion";
 import { Loader2Icon, PhoneIcon, PhoneOffIcon } from "lucide-react";
@@ -11,6 +11,7 @@ import { Button } from "@/components/ui/button";
 import { Orb } from "@/components/ui/orb";
 import { ShimmeringText } from "@/components/ui/shimmering-text";
 import { ProtectedRoute } from "@/components/protected-route";
+import GradientBlinds from "@/components/ui/gradient-blinds";
 
 // Agent ID must be configured via environment variable
 const AGENT_ID = process.env.NEXT_PUBLIC_AGENT_ID;
@@ -100,7 +101,7 @@ function VoiceChatInterface() {
   }, [conversation]);
 
   return (
-    <Card className="flex h-[500px] w-full flex-col items-center justify-center overflow-hidden p-8">
+    <Card className="flex h-125 w-full flex-col items-center justify-center overflow-hidden p-8">
       <div className="flex flex-col items-center gap-8">
         <div className="relative size-40">
           <div className="bg-muted relative h-full w-full rounded-full p-2 shadow-[inset_0_2px_8px_rgba(0,0,0,0.1)] dark:shadow-[inset_0_2px_8px_rgba(0,0,0,0.5)]">
@@ -228,22 +229,67 @@ export default function VoiceAgentPage() {
 }
 
 function VoiceAgentContent() {
+  const gradientBlindsContainerRef = useRef<HTMLDivElement>(null);
+
   return (
-    <div className="container mx-auto px-4 py-8 max-w-4xl">
-      {/* Header Section */}
-      <div className="text-center mb-8">
-        <h1 className="text-3xl font-bold tracking-tight mb-3">
-          Voice Agent Assistant
-        </h1>
-        <p className="text-muted-foreground text-lg max-w-2xl mx-auto">
-          Interact with our AI-powered voice agent to report issues, get
-          information, and navigate through the platform using natural speech.
-        </p>
+    <div
+      className="min-h-screen relative overflow-hidden"
+      onMouseMove={(e) => {
+        // Forward mouse events to GradientBlinds even when over content
+        if (gradientBlindsContainerRef.current) {
+          const container = gradientBlindsContainerRef.current;
+          const canvas = container.querySelector("canvas");
+          if (canvas) {
+            const event = new PointerEvent("pointermove", {
+              clientX: e.clientX,
+              clientY: e.clientY,
+              bubbles: true,
+            });
+            canvas.dispatchEvent(event);
+          }
+        }
+      }}
+    >
+      {/* Gradient Blinds Background */}
+      <div
+        ref={gradientBlindsContainerRef}
+        className="fixed inset-0 w-full h-full z-0 pointer-events-none"
+      >
+        <GradientBlinds
+          gradientColors={["#FF00FF", "#00FFFF", "#FF0080", "#8000FF"]}
+          angle={0}
+          noise={0.4}
+          blindCount={12}
+          blindMinWidth={50}
+          spotlightRadius={0.9}
+          spotlightSoftness={0.5}
+          spotlightOpacity={2.5}
+          mouseDampening={0.08}
+          distortAmount={0}
+          shineDirection="left"
+          mixBlendMode="screen"
+        />
       </div>
 
-      {/* Main Voice Agent Interface */}
-      <div className="mb-8">
-        <VoiceChatInterface />
+      {/* Glassmorphism overlay for readability */}
+      <div className="fixed inset-0 w-full h-full z-1 bg-linear-to-br from-white/40 via-white/30 to-white/50 dark:from-black/40 dark:via-black/30 dark:to-black/50 backdrop-blur-md pointer-events-none" />
+
+      <div className="container mx-auto px-4 py-8 max-w-4xl relative z-10">
+        {/* Header Section */}
+        <div className="text-center mb-8">
+          <h1 className="text-3xl font-bold tracking-tight mb-3">
+            Voice Agent Assistant
+          </h1>
+          <p className="text-muted-foreground text-lg max-w-2xl mx-auto">
+            Interact with our AI-powered voice agent to report issues, get
+            information, and navigate through the platform using natural speech.
+          </p>
+        </div>
+
+        {/* Main Voice Agent Interface */}
+        <div className="mb-8">
+          <VoiceChatInterface />
+        </div>
       </div>
     </div>
   );
