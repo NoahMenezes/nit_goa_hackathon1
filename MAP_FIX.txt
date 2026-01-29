@@ -1,0 +1,63 @@
+🗺️  MAP DISPLAY - QUICK FIX
+================================
+
+PROBLEM: Map not showing on /map page
+
+FIXES APPLIED:
+--------------
+✅ Updated MapTiler API key usage in interactive-map.tsx
+✅ API key is properly set in .env.local
+✅ Map component now reads from environment variable
+
+YOUR MAPTILER KEY:
+------------------
+NEXT_PUBLIC_MAPTILER_API_KEY=r4rtlkPK4DaQBrGuTiuR
+
+NEXT STEPS:
+-----------
+
+1. RESTART YOUR DEV SERVER (Important!)
+   - Kill the current server (Ctrl+C)
+   - Start it again: npm run dev
+
+2. Visit the map page:
+   http://localhost:3000/map
+
+3. Open browser DevTools (F12) and check Console tab for errors
+
+EXPECTED RESULT:
+----------------
+✅ Interactive map with dark street tiles
+✅ Colored markers showing issues
+✅ Navigation controls (zoom, locate, fullscreen)
+✅ Clicking markers shows issue details
+
+TROUBLESHOOTING:
+----------------
+
+If map doesn't load:
+
+1. Check browser console for errors
+2. Look for network errors in DevTools Network tab
+3. Verify MapTiler quota: https://cloud.maptiler.com/account/keys/
+
+If map shows but no markers:
+- Check if issues exist: curl http://localhost:3000/api/issues
+
+If "Failed to load map":
+- API key might be invalid or expired
+- Check MapTiler dashboard
+
+TEST COMMANDS:
+--------------
+
+# Check if map page is accessible
+curl -I http://localhost:3000/map
+
+# Check if issues exist
+curl http://localhost:3000/api/issues
+
+# Run full diagnostic
+./test-fixes.sh
+
+================================

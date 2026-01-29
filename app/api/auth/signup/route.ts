@@ -76,21 +76,49 @@ export async function POST(request: NextRequest) {
     // Check if user already exists in the appropriate database
     const supabaseClient = getSupabaseClientByRole(role, true);
 
-    let existingUser;
-    if (supabaseClient) {
-      // Check in the appropriate Supabase database
-      const { data } = await supabaseClient
-        .from("users")
-        .select("id")
-        .eq("email", email.toLowerCase())
-        .single();
-      existingUser = data;
-    } else {
-      // Fallback to in-memory database
-      existingUser = await userDb.findByEmail(email.toLowerCase());
+    if (!supabaseClient) {
+      console.error(`No Supabase client available for ${role} database`);
+      return NextResponse.json(
+        {
+          success: false,
+          error: `Database configuration error for ${role} database. Please contact support.`,
+        } as AuthResponse,
+        { status: 500 },
+      );
     }
 
+    console.log(
+      `Checking if user exists in ${role} database: ${email.toLowerCase()}`,
+    );
+
+    let existingUser;
+    // Check in the appropriate Supabase database using maybeSingle() to avoid errors
+    const { data, error: checkError } = await supabaseClient
+      .from("users")
+      .select("id, email")
+      .eq("email", email.toLowerCase())
+      .maybeSingle();
+
+    if (checkError) {
+      console.error(
+        `Error checking user existence in ${role} database:`,
+        checkError,
+      );
+      return NextResponse.json(
+        {
+          success: false,
+          error: `Database error while checking user. Please try again.`,
+        } as AuthResponse,
+        { status: 500 },
+      );
+    }
+
+    existingUser = data;
+
     if (existingUser) {
+      console.log(
+        `User already exists in ${role} database: ${email.toLowerCase()}`,
+      );
       return NextResponse.json(
         {
           success: false,
@@ -100,57 +128,47 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    console.log(
+      `User does not exist in ${role} database, proceeding with signup`,
+    );
+
     // Hash password
     const hashedPassword = await hashPassword(password);
 
     // Create new user in the appropriate database
-    let newUser;
-    if (supabaseClient) {
-      // Create user in the appropriate Supabase database
-      const { data, error } = await supabaseClient
-        .from("users")
-        .insert({
-          name: name.trim(),
-          email: email.toLowerCase(),
-          password: hashedPassword,
-          role: role,
-        })
-        .select()
-        .single();
+    console.log(`Creating user in ${role} database with role: ${role}`);
 
-      if (error || !data) {
-        console.error(`Failed to create user in ${role} database:`, error);
-        return NextResponse.json(
-          {
-            success: false,
-            error: `Failed to create user in ${role} database. Please try again.`,
-          } as AuthResponse,
-          { status: 500 },
-        );
-      }
-      newUser = data;
-      console.log(
-        `User created successfully in ${role} database: ${newUser.email}`,
-      );
-    } else {
-      // Fallback to in-memory database
-      newUser = await userDb.create({
+    const { data: newUser, error: insertError } = await supabaseClient
+      .from("users")
+      .insert({
         name: name.trim(),
         email: email.toLowerCase(),
         password: hashedPassword,
         role: role,
-      });
+      })
+      .select()
+      .single();
 
-      if (!newUser) {
-        return NextResponse.json(
-          {
-            success: false,
-            error: "Failed to create user. Please try again.",
-          } as AuthResponse,
-          { status: 500 },
-        );
-      }
+    if (insertError || !newUser) {
+      console.error(`Failed to create user in ${role} database:`, insertError);
+      console.error(`Insert error details:`, {
+        code: insertError?.code,
+        message: insertError?.message,
+        details: insertError?.details,
+        hint: insertError?.hint,
+      });
+      return NextResponse.json(
+        {
+          success: false,
+          error: `Failed to create user in ${role} database: ${insertError?.message || "Unknown error"}`,
+        } as AuthResponse,
+        { status: 500 },
+      );
     }
+
+    console.log(
+      `✅ User created successfully in ${role} database: ${newUser.email} with ID: ${newUser.id}`,
+    );
 
     // Generate token
     const token = generateToken(newUser.id, newUser.email, newUser.role);

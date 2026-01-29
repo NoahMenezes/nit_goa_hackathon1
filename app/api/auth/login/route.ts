@@ -109,14 +109,18 @@ export async function POST(request: NextRequest) {
     let user;
     if (supabaseClient) {
       // Query the appropriate Supabase database
+      // Use .maybeSingle() to avoid errors when no rows are found
       const { data, error } = await supabaseClient
         .from("users")
         .select("*")
         .eq("email", email.toLowerCase())
-        .single();
+        .maybeSingle();
 
-      if (error || !data) {
-        console.log(`User not found in ${userType} database:`, error?.message);
+      if (error) {
+        console.error(`Database error in ${userType} database:`, error.message);
+        user = null;
+      } else if (!data) {
+        console.log(`User not found in ${userType} database: ${email}`);
         user = null;
       } else {
         user = data;

@@ -64,15 +64,17 @@ export function InteractiveMap({
 
         if (!mapContainerRef.current || mapRef.current) return;
 
+        // Get API key from environment
+        const apiKey =
+          process.env.NEXT_PUBLIC_MAPTILER_API_KEY || "r4rtlkPK4DaQBrGuTiuR";
+
         // Initialize map
         mapRef.current = new maptilersdk.Map({
           container: mapContainerRef.current,
-          style:
-            "https://api.maptiler.com/maps/streets-v2-dark/style.json?key=dA7RH7aBOA9zMomjXvTC",
+          style: `https://api.maptiler.com/maps/streets-v2-dark/style.json?key=${apiKey}`,
           center: [center[0], center[1]],
           zoom: zoom,
-          apiKey:
-            process.env.NEXT_PUBLIC_MAPTILER_API_KEY || "dA7RH7aBOA9zMomjXvTC",
+          apiKey: apiKey,
         });
 
         // Add navigation controls
