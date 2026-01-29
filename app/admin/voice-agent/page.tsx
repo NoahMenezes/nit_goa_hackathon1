@@ -196,6 +196,7 @@ export default function AdminVoiceAgentPage() {
       });
 
       console.log("API Response status:", apiResponse.status);
+      console.log("API Response status text:", apiResponse.statusText);
 
       if (apiResponse.ok) {
         const data = await apiResponse.json();
@@ -203,7 +204,13 @@ export default function AdminVoiceAgentPage() {
         if (data.success) {
           toast.success(
             `Response sent successfully to issue: ${data.data.issueTitle}!`,
-            { duration: 5000 },
+            {
+              duration: 10000,
+              action: {
+                label: "View Issue",
+                onClick: () => router.push(`/issues/${data.data.issueId}`),
+              },
+            },
           );
           // Clear the form
           setEmail("");
@@ -214,11 +221,27 @@ export default function AdminVoiceAgentPage() {
           toast.error(data.message || "Failed to send response");
         }
       } else {
-        const errorData = await apiResponse.json();
-        console.error("API error response:", errorData);
-        toast.error(
-          errorData.message || "Failed to send response. Please try again.",
-        );
+        // Handle non-OK responses
+        console.error("API Response failed with status:", apiResponse.status);
+        let errorMessage = "Failed to send response. Please try again.";
+
+        try {
+          const errorData = await apiResponse.json();
+          console.error("API error response:", errorData);
+          errorMessage = errorData.message || errorMessage;
+        } catch (jsonError) {
+          // If response is not JSON, try to get text
+          console.error("Could not parse error as JSON:", jsonError);
+          try {
+            const errorText = await apiResponse.text();
+            console.error("API error text:", errorText);
+            errorMessage = errorText || errorMessage;
+          } catch (textError) {
+            console.error("Could not read error response:", textError);
+          }
+        }
+
+        toast.error(errorMessage);
       }
     } catch (error) {
       console.error("Error sending response:", error);
@@ -452,11 +475,7 @@ export default function AdminVoiceAgentPage() {
                 </Button>
                 <Button
                   type="submit"
-                  disabled={
-                    isSubmitting ||
-                    !email.trim() ||
-                    (!manualResponse.trim() && !transcript.trim())
-                  }
+                  disabled={isSubmitting}
                   className="min-w-30"
                 >
                   {isSubmitting ? (

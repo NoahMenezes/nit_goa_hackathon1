@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { useAuth } from "@/contexts/auth-context";
@@ -14,242 +14,23 @@ import {
 } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
-import { Badge } from "@/components/ui/badge";
-import { Input } from "@/components/ui/input";
-import {
-  AlertCircle,
+  ClipboardList,
+  TrendingUp,
   CheckCircle,
+  AlertCircle,
   Clock,
-  Search,
-  Download,
-  RefreshCw,
-  Eye,
-  Trash2,
+  FileText,
 } from "lucide-react";
-import { toast } from "sonner";
-import { Issue } from "@/lib/types";
-
-interface IssueFilters {
-  status?: string;
-  category?: string;
-  ward?: string;
-  priority?: string;
-  search?: string;
-}
 
 export default function AdminIssuesPage() {
   const router = useRouter();
   const { user, isAuthenticated, isLoading } = useAuth();
-  const [issues, setIssues] = useState<Issue[]>([]);
-  const [loadingIssues, setLoadingIssues] = useState(true);
-  const [filters, setFilters] = useState<IssueFilters>({});
-  const [searchTerm, setSearchTerm] = useState("");
-  const [selectedIssues, setSelectedIssues] = useState<string[]>([]);
 
   useEffect(() => {
     if (!isLoading && (!isAuthenticated || user?.role !== "admin")) {
       router.push("/");
     }
   }, [isAuthenticated, user, isLoading, router]);
-
-  useEffect(() => {
-    if (isAuthenticated && user?.role === "admin") {
-      fetchIssues();
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [isAuthenticated, user, filters]);
-
-  const fetchIssues = async () => {
-    setLoadingIssues(true);
-    try {
-      const token = localStorage.getItem("citypulse_auth_token");
-      const params = new URLSearchParams();
-
-      if (filters.status) params.append("status", filters.status);
-      if (filters.category) params.append("category", filters.category);
-      if (filters.ward) params.append("ward", filters.ward);
-      if (filters.priority) params.append("priority", filters.priority);
-      if (searchTerm) params.append("search", searchTerm);
-
-      const response = await fetch(`/api/admin/issues?${params}`, {
-        headers: {
-          Authorization: `Bearer ${token}`,
-        },
-      });
-
-      if (response.ok) {
-        const data = await response.json();
-        if (data.success) {
-          setIssues(data.data || []);
-        }
-      } else {
-        toast.error("Failed to fetch issues");
-      }
-    } catch (error) {
-      console.error("Failed to fetch issues:", error);
-      toast.error("An error occurred while fetching issues");
-    } finally {
-      setLoadingIssues(false);
-    }
-  };
-
-  const handleStatusUpdate = async (issueId: string, newStatus: string) => {
-    try {
-      const token = localStorage.getItem("citypulse_auth_token");
-      const response = await fetch(`/api/issues/${issueId}`, {
-        method: "PUT",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${token}`,
-        },
-        body: JSON.stringify({ status: newStatus }),
-      });
-
-      if (response.ok) {
-        toast.success("Issue status updated successfully");
-        fetchIssues();
-      } else {
-        toast.error("Failed to update issue status");
-      }
-    } catch (error) {
-      console.error("Failed to update status:", error);
-      toast.error("An error occurred while updating status");
-    }
-  };
-
-  const handleDeleteIssue = async (issueId: string) => {
-    if (!confirm("Are you sure you want to delete this issue?")) return;
-
-    try {
-      const token = localStorage.getItem("citypulse_auth_token");
-      const response = await fetch(`/api/issues/${issueId}`, {
-        method: "DELETE",
-        headers: {
-          Authorization: `Bearer ${token}`,
-        },
-      });
-
-      if (response.ok) {
-        toast.success("Issue deleted successfully");
-        fetchIssues();
-      } else {
-        toast.error("Failed to delete issue");
-      }
-    } catch (error) {
-      console.error("Failed to delete issue:", error);
-      toast.error("An error occurred while deleting issue");
-    }
-  };
-
-  const handleBulkStatusUpdate = async (newStatus: string) => {
-    if (selectedIssues.length === 0) {
-      toast.error("Please select issues to update");
-      return;
-    }
-
-    try {
-      const token = localStorage.getItem("citypulse_auth_token");
-      const updatePromises = selectedIssues.map((issueId) =>
-        fetch(`/api/issues/${issueId}`, {
-          method: "PUT",
-          headers: {
-            "Content-Type": "application/json",
-            Authorization: `Bearer ${token}`,
-          },
-          body: JSON.stringify({ status: newStatus }),
-        }),
-      );
-
-      await Promise.all(updatePromises);
-      toast.success(`${selectedIssues.length} issues updated successfully`);
-      setSelectedIssues([]);
-      fetchIssues();
-    } catch (error) {
-      console.error("Failed to update issues:", error);
-      toast.error("An error occurred while updating issues");
-    }
-  };
-
-  const exportToCSV = () => {
-    const csvContent = [
-      ["ID", "Title", "Category", "Status", "Ward", "Priority", "Created At"],
-      ...issues.map((issue) => [
-        issue.id,
-        issue.title,
-        issue.category,
-        issue.status,
-        issue.ward || "N/A",
-        issue.priority || "N/A",
-        new Date(issue.createdAt).toLocaleDateString(),
-      ]),
-    ]
-      .map((row) => row.join(","))
-      .join("\n");
-
-    const blob = new Blob([csvContent], { type: "text/csv" });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement("a");
-    a.href = url;
-    a.download = `issues-${new Date().toISOString().split("T")[0]}.csv`;
-    a.click();
-    URL.revokeObjectURL(url);
-    toast.success("Issues exported successfully");
-  };
-
-  const getStatusBadge = (status: string) => {
-    const variants: Record<
-      string,
-      {
-        variant: "default" | "destructive" | "outline" | "secondary";
-        icon: React.ComponentType<{ className?: string }>;
-      }
-    > = {
-      open: { variant: "secondary", icon: AlertCircle },
-      "in-progress": { variant: "default", icon: Clock },
-      resolved: { variant: "default", icon: CheckCircle },
-      closed: { variant: "outline", icon: CheckCircle },
-    };
-
-    const config = variants[status] || variants.open;
-    const Icon = config.icon;
-
-    return (
-      <Badge variant={config.variant} className="flex items-center gap-1 w-fit">
-        <Icon className="h-3 w-3" />
-        {status}
-      </Badge>
-    );
-  };
-
-  const getPriorityBadge = (priority?: string) => {
-    if (!priority) return <Badge variant="outline">None</Badge>;
-
-    const colors: Record<string, string> = {
-      low: "bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200",
-      medium:
-        "bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200",
-      high: "bg-orange-100 text-orange-800 dark:bg-orange-900 dark:text-orange-200",
-      critical: "bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200",
-    };
-
-    return (
-      <Badge className={colors[priority] || colors.medium}>{priority}</Badge>
-    );
-  };
 
   if (isLoading || !user) {
     return <div>Loading...</div>;
@@ -290,260 +71,280 @@ export default function AdminIssuesPage() {
           </div>
         </div>
 
-        {/* Filters and Actions */}
-        <Card className="mb-6">
-          <CardHeader>
-            <CardTitle>Filters & Actions</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="grid gap-4 md:grid-cols-5 mb-4">
-              <div className="relative">
-                <Search className="absolute left-3 top-3 h-4 w-4 text-gray-400" />
-                <Input
-                  placeholder="Search issues..."
-                  value={searchTerm}
-                  onChange={(e) => setSearchTerm(e.target.value)}
-                  className="pl-9"
-                />
+        {/* Content Cards */}
+        <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3 mb-6">
+          <Card className="backdrop-blur-sm bg-white/90 dark:bg-gray-900/90">
+            <CardHeader>
+              <div className="flex items-center gap-3">
+                <div className="p-3 bg-blue-100 dark:bg-blue-900 rounded-lg">
+                  <ClipboardList className="h-6 w-6 text-blue-600 dark:text-blue-400" />
+                </div>
+                <div>
+                  <CardTitle className="text-lg">Total Issues</CardTitle>
+                  <CardDescription>All reported issues</CardDescription>
+                </div>
               </div>
+            </CardHeader>
+            <CardContent>
+              <p className="text-sm text-gray-600 dark:text-gray-400">
+                View and manage all civic issues reported by citizens in the
+                system.
+              </p>
+            </CardContent>
+          </Card>
 
-              <Select
-                value={filters.status || "all"}
-                onValueChange={(value) =>
-                  setFilters({
-                    ...filters,
-                    status: value === "all" ? undefined : value,
-                  })
-                }
-              >
-                <SelectTrigger>
-                  <SelectValue placeholder="Status" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">All Statuses</SelectItem>
-                  <SelectItem value="open">Open</SelectItem>
-                  <SelectItem value="in-progress">In Progress</SelectItem>
-                  <SelectItem value="resolved">Resolved</SelectItem>
-                  <SelectItem value="closed">Closed</SelectItem>
-                </SelectContent>
-              </Select>
+          <Card className="backdrop-blur-sm bg-white/90 dark:bg-gray-900/90">
+            <CardHeader>
+              <div className="flex items-center gap-3">
+                <div className="p-3 bg-green-100 dark:bg-green-900 rounded-lg">
+                  <CheckCircle className="h-6 w-6 text-green-600 dark:text-green-400" />
+                </div>
+                <div>
+                  <CardTitle className="text-lg">Resolved</CardTitle>
+                  <CardDescription>Completed issues</CardDescription>
+                </div>
+              </div>
+            </CardHeader>
+            <CardContent>
+              <p className="text-sm text-gray-600 dark:text-gray-400">
+                Track successfully resolved issues and monitor resolution rates.
+              </p>
+            </CardContent>
+          </Card>
 
-              <Select
-                value={filters.category || "all"}
-                onValueChange={(value) =>
-                  setFilters({
-                    ...filters,
-                    category: value === "all" ? undefined : value,
-                  })
-                }
-              >
-                <SelectTrigger>
-                  <SelectValue placeholder="Category" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">All Categories</SelectItem>
-                  <SelectItem value="Roads">Roads</SelectItem>
-                  <SelectItem value="Waste Management">
-                    Waste Management
-                  </SelectItem>
-                  <SelectItem value="Street Lights">Street Lights</SelectItem>
-                  <SelectItem value="Water Supply">Water Supply</SelectItem>
-                  <SelectItem value="Drainage">Drainage</SelectItem>
-                  <SelectItem value="Other">Other</SelectItem>
-                </SelectContent>
-              </Select>
+          <Card className="backdrop-blur-sm bg-white/90 dark:bg-gray-900/90">
+            <CardHeader>
+              <div className="flex items-center gap-3">
+                <div className="p-3 bg-yellow-100 dark:bg-yellow-900 rounded-lg">
+                  <Clock className="h-6 w-6 text-yellow-600 dark:text-yellow-400" />
+                </div>
+                <div>
+                  <CardTitle className="text-lg">In Progress</CardTitle>
+                  <CardDescription>Active issues</CardDescription>
+                </div>
+              </div>
+            </CardHeader>
+            <CardContent>
+              <p className="text-sm text-gray-600 dark:text-gray-400">
+                Monitor issues currently being worked on by authorities.
+              </p>
+            </CardContent>
+          </Card>
+        </div>
 
-              <Select
-                value={filters.priority || "all"}
-                onValueChange={(value) =>
-                  setFilters({
-                    ...filters,
-                    priority: value === "all" ? undefined : value,
-                  })
-                }
-              >
-                <SelectTrigger>
-                  <SelectValue placeholder="Priority" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">All Priorities</SelectItem>
-                  <SelectItem value="low">Low</SelectItem>
-                  <SelectItem value="medium">Medium</SelectItem>
-                  <SelectItem value="high">High</SelectItem>
-                  <SelectItem value="critical">Critical</SelectItem>
-                </SelectContent>
-              </Select>
-
-              <Button onClick={fetchIssues} variant="outline">
-                <RefreshCw className="h-4 w-4 mr-2" />
-                Refresh
-              </Button>
-            </div>
-
-            <div className="flex flex-wrap gap-2">
-              <Button onClick={exportToCSV} variant="outline" size="sm">
-                <Download className="h-4 w-4 mr-2" />
-                Export CSV
-              </Button>
-              {selectedIssues.length > 0 && (
-                <>
-                  <Button
-                    onClick={() => handleBulkStatusUpdate("in-progress")}
-                    variant="outline"
-                    size="sm"
-                  >
-                    Mark as In Progress ({selectedIssues.length})
-                  </Button>
-                  <Button
-                    onClick={() => handleBulkStatusUpdate("resolved")}
-                    variant="outline"
-                    size="sm"
-                  >
-                    Mark as Resolved ({selectedIssues.length})
-                  </Button>
-                  <Button
-                    onClick={() => setSelectedIssues([])}
-                    variant="outline"
-                    size="sm"
-                  >
-                    Clear Selection
-                  </Button>
-                </>
-              )}
-            </div>
-          </CardContent>
-        </Card>
-
-        {/* Issues Table */}
-        <Card>
+        {/* Main Content Card */}
+        <Card className="backdrop-blur-sm bg-white/90 dark:bg-gray-900/90">
           <CardHeader>
-            <CardTitle>Issues ({issues.length})</CardTitle>
+            <CardTitle className="flex items-center gap-2">
+              <FileText className="h-5 w-5" />
+              Issue Management System
+            </CardTitle>
             <CardDescription>
-              {loadingIssues ? "Loading..." : `Showing ${issues.length} issues`}
+              Comprehensive issue tracking and management
             </CardDescription>
           </CardHeader>
-          <CardContent>
-            <div className="overflow-x-auto">
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead className="w-12">
-                      <input
-                        type="checkbox"
-                        checked={
-                          selectedIssues.length === issues.length &&
-                          issues.length > 0
-                        }
-                        onChange={(e) => {
-                          if (e.target.checked) {
-                            setSelectedIssues(issues.map((i) => i.id));
-                          } else {
-                            setSelectedIssues([]);
-                          }
-                        }}
-                      />
-                    </TableHead>
-                    <TableHead>Title</TableHead>
-                    <TableHead>Category</TableHead>
-                    <TableHead>Status</TableHead>
-                    <TableHead>Priority</TableHead>
-                    <TableHead>Ward</TableHead>
-                    <TableHead>Reporter</TableHead>
-                    <TableHead>Created</TableHead>
-                    <TableHead>Actions</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {loadingIssues ? (
-                    <TableRow>
-                      <TableCell colSpan={9} className="text-center py-8">
-                        Loading issues...
-                      </TableCell>
-                    </TableRow>
-                  ) : issues.length === 0 ? (
-                    <TableRow>
-                      <TableCell colSpan={9} className="text-center py-8">
-                        No issues found
-                      </TableCell>
-                    </TableRow>
-                  ) : (
-                    issues.map((issue) => (
-                      <TableRow key={issue.id}>
-                        <TableCell>
-                          <input
-                            type="checkbox"
-                            checked={selectedIssues.includes(issue.id)}
-                            onChange={(e) => {
-                              if (e.target.checked) {
-                                setSelectedIssues([
-                                  ...selectedIssues,
-                                  issue.id,
-                                ]);
-                              } else {
-                                setSelectedIssues(
-                                  selectedIssues.filter(
-                                    (id) => id !== issue.id,
-                                  ),
-                                );
-                              }
-                            }}
-                          />
-                        </TableCell>
-                        <TableCell className="font-medium max-w-xs truncate">
-                          {issue.title}
-                        </TableCell>
-                        <TableCell>{issue.category}</TableCell>
-                        <TableCell>
-                          <Select
-                            value={issue.status}
-                            onValueChange={(value) =>
-                              handleStatusUpdate(issue.id, value)
-                            }
-                          >
-                            <SelectTrigger className="w-36">
-                              {getStatusBadge(issue.status)}
-                            </SelectTrigger>
-                            <SelectContent>
-                              <SelectItem value="open">Open</SelectItem>
-                              <SelectItem value="in-progress">
-                                In Progress
-                              </SelectItem>
-                              <SelectItem value="resolved">Resolved</SelectItem>
-                              <SelectItem value="closed">Closed</SelectItem>
-                            </SelectContent>
-                          </Select>
-                        </TableCell>
-                        <TableCell>
-                          {getPriorityBadge(issue.priority)}
-                        </TableCell>
-                        <TableCell>{issue.ward || "N/A"}</TableCell>
-                        <TableCell className="truncate max-w-32">
-                          {issue.userId || "Anonymous"}
-                        </TableCell>
-                        <TableCell>
-                          {new Date(issue.createdAt).toLocaleDateString()}
-                        </TableCell>
-                        <TableCell>
-                          <div className="flex items-center gap-2">
-                            <Link href={`/issues/${issue.id}`}>
-                              <Button variant="ghost" size="sm">
-                                <Eye className="h-4 w-4" />
-                              </Button>
-                            </Link>
-                            <Button
-                              variant="ghost"
-                              size="sm"
-                              onClick={() => handleDeleteIssue(issue.id)}
-                            >
-                              <Trash2 className="h-4 w-4 text-red-600" />
-                            </Button>
-                          </div>
-                        </TableCell>
-                      </TableRow>
-                    ))
-                  )}
-                </TableBody>
-              </Table>
+          <CardContent className="space-y-6">
+            <div className="prose dark:prose-invert max-w-none">
+              <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100 mb-3">
+                Overview
+              </h3>
+              <p className="text-gray-600 dark:text-gray-400 mb-4">
+                The Issue Management system provides administrators with
+                comprehensive tools to track, monitor, and resolve civic issues
+                reported by citizens. This centralized platform ensures
+                efficient handling of all community concerns.
+              </p>
+
+              <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100 mb-3">
+                Key Features
+              </h3>
+              <ul className="space-y-2 text-gray-600 dark:text-gray-400">
+                <li className="flex items-start gap-2">
+                  <CheckCircle className="h-5 w-5 text-green-600 mt-0.5 flex-shrink-0" />
+                  <span>
+                    <strong>Real-time Tracking:</strong> Monitor all reported
+                    issues in real-time with automatic updates and
+                    notifications.
+                  </span>
+                </li>
+                <li className="flex items-start gap-2">
+                  <CheckCircle className="h-5 w-5 text-green-600 mt-0.5 flex-shrink-0" />
+                  <span>
+                    <strong>Status Management:</strong> Update issue statuses
+                    from open, in-progress, resolved, to closed with ease.
+                  </span>
+                </li>
+                <li className="flex items-start gap-2">
+                  <CheckCircle className="h-5 w-5 text-green-600 mt-0.5 flex-shrink-0" />
+                  <span>
+                    <strong>Priority Assignment:</strong> Categorize issues by
+                    priority levels (low, medium, high, critical) for efficient
+                    resource allocation.
+                  </span>
+                </li>
+                <li className="flex items-start gap-2">
+                  <CheckCircle className="h-5 w-5 text-green-600 mt-0.5 flex-shrink-0" />
+                  <span>
+                    <strong>Category Filtering:</strong> Filter issues by type
+                    including potholes, streetlights, garbage, water leaks, and
+                    more.
+                  </span>
+                </li>
+                <li className="flex items-start gap-2">
+                  <CheckCircle className="h-5 w-5 text-green-600 mt-0.5 flex-shrink-0" />
+                  <span>
+                    <strong>Ward-based Organization:</strong> View and manage
+                    issues based on specific wards or districts for better
+                    locality management.
+                  </span>
+                </li>
+                <li className="flex items-start gap-2">
+                  <CheckCircle className="h-5 w-5 text-green-600 mt-0.5 flex-shrink-0" />
+                  <span>
+                    <strong>Bulk Operations:</strong> Perform bulk status
+                    updates and actions on multiple issues simultaneously.
+                  </span>
+                </li>
+              </ul>
+
+              <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100 mb-3 mt-6">
+                Issue Categories
+              </h3>
+              <p className="text-gray-600 dark:text-gray-400 mb-3">
+                The system categorizes issues into the following types:
+              </p>
+              <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
+                <div className="bg-gray-50 dark:bg-gray-800 p-3 rounded-lg">
+                  <p className="text-sm font-medium text-gray-900 dark:text-gray-100">
+                    🕳️ Potholes
+                  </p>
+                </div>
+                <div className="bg-gray-50 dark:bg-gray-800 p-3 rounded-lg">
+                  <p className="text-sm font-medium text-gray-900 dark:text-gray-100">
+                    💡 Streetlights
+                  </p>
+                </div>
+                <div className="bg-gray-50 dark:bg-gray-800 p-3 rounded-lg">
+                  <p className="text-sm font-medium text-gray-900 dark:text-gray-100">
+                    🗑️ Garbage
+                  </p>
+                </div>
+                <div className="bg-gray-50 dark:bg-gray-800 p-3 rounded-lg">
+                  <p className="text-sm font-medium text-gray-900 dark:text-gray-100">
+                    💧 Water Leaks
+                  </p>
+                </div>
+                <div className="bg-gray-50 dark:bg-gray-800 p-3 rounded-lg">
+                  <p className="text-sm font-medium text-gray-900 dark:text-gray-100">
+                    🛣️ Road Issues
+                  </p>
+                </div>
+                <div className="bg-gray-50 dark:bg-gray-800 p-3 rounded-lg">
+                  <p className="text-sm font-medium text-gray-900 dark:text-gray-100">
+                    🚰 Sanitation
+                  </p>
+                </div>
+              </div>
+
+              <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100 mb-3 mt-6">
+                Workflow
+              </h3>
+              <div className="space-y-3">
+                <div className="flex items-start gap-3 bg-blue-50 dark:bg-blue-950 p-4 rounded-lg">
+                  <div className="bg-blue-600 text-white rounded-full w-6 h-6 flex items-center justify-center flex-shrink-0 text-sm font-bold">
+                    1
+                  </div>
+                  <div>
+                    <p className="font-medium text-blue-900 dark:text-blue-100">
+                      Issue Reported
+                    </p>
+                    <p className="text-sm text-blue-700 dark:text-blue-300">
+                      Citizen reports an issue through the platform
+                    </p>
+                  </div>
+                </div>
+                <div className="flex items-start gap-3 bg-yellow-50 dark:bg-yellow-950 p-4 rounded-lg">
+                  <div className="bg-yellow-600 text-white rounded-full w-6 h-6 flex items-center justify-center flex-shrink-0 text-sm font-bold">
+                    2
+                  </div>
+                  <div>
+                    <p className="font-medium text-yellow-900 dark:text-yellow-100">
+                      Review & Assign
+                    </p>
+                    <p className="text-sm text-yellow-700 dark:text-yellow-300">
+                      Admin reviews and assigns priority and category
+                    </p>
+                  </div>
+                </div>
+                <div className="flex items-start gap-3 bg-purple-50 dark:bg-purple-950 p-4 rounded-lg">
+                  <div className="bg-purple-600 text-white rounded-full w-6 h-6 flex items-center justify-center flex-shrink-0 text-sm font-bold">
+                    3
+                  </div>
+                  <div>
+                    <p className="font-medium text-purple-900 dark:text-purple-100">
+                      In Progress
+                    </p>
+                    <p className="text-sm text-purple-700 dark:text-purple-300">
+                      Authorities work on resolving the issue
+                    </p>
+                  </div>
+                </div>
+                <div className="flex items-start gap-3 bg-green-50 dark:bg-green-950 p-4 rounded-lg">
+                  <div className="bg-green-600 text-white rounded-full w-6 h-6 flex items-center justify-center flex-shrink-0 text-sm font-bold">
+                    4
+                  </div>
+                  <div>
+                    <p className="font-medium text-green-900 dark:text-green-100">
+                      Resolved
+                    </p>
+                    <p className="text-sm text-green-700 dark:text-green-300">
+                      Issue is resolved and citizen is notified
+                    </p>
+                  </div>
+                </div>
+              </div>
+
+              <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100 mb-3 mt-6">
+                Performance Metrics
+              </h3>
+              <p className="text-gray-600 dark:text-gray-400 mb-3">
+                Track key performance indicators:
+              </p>
+              <ul className="space-y-2 text-gray-600 dark:text-gray-400">
+                <li className="flex items-center gap-2">
+                  <TrendingUp className="h-4 w-4 text-blue-600" />
+                  <span>Average resolution time per issue category</span>
+                </li>
+                <li className="flex items-center gap-2">
+                  <TrendingUp className="h-4 w-4 text-blue-600" />
+                  <span>Resolution rate by ward and priority level</span>
+                </li>
+                <li className="flex items-center gap-2">
+                  <TrendingUp className="h-4 w-4 text-blue-600" />
+                  <span>Citizen satisfaction and feedback scores</span>
+                </li>
+                <li className="flex items-center gap-2">
+                  <TrendingUp className="h-4 w-4 text-blue-600" />
+                  <span>Response time from report to first action</span>
+                </li>
+              </ul>
+
+              <div className="bg-blue-50 dark:bg-blue-950 border border-blue-200 dark:border-blue-800 rounded-lg p-4 mt-6">
+                <div className="flex items-start gap-3">
+                  <AlertCircle className="h-5 w-5 text-blue-600 dark:text-blue-400 mt-0.5" />
+                  <div>
+                    <h4 className="font-semibold text-blue-900 dark:text-blue-100 mb-1">
+                      Best Practices
+                    </h4>
+                    <p className="text-sm text-blue-700 dark:text-blue-300">
+                      Respond to critical issues within 24 hours, update issue
+                      statuses regularly, communicate with citizens through
+                      comments, and maintain detailed records of all actions
+                      taken.
+                    </p>
+                  </div>
+                </div>
+              </div>
             </div>
           </CardContent>
         </Card>

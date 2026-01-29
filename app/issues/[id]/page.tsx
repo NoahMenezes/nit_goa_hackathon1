@@ -366,28 +366,57 @@ export default function IssueDetailPage() {
 
                 {issue.comments.length > 0 ? (
                   <div className="space-y-4">
-                    {issue.comments.map((comment) => (
-                      <div key={comment.id} className="flex gap-3">
-                        <Avatar className="h-8 w-8">
-                          <AvatarFallback>
-                            {comment.userName.charAt(0).toUpperCase()}
-                          </AvatarFallback>
-                        </Avatar>
-                        <div className="flex-1 space-y-1">
-                          <div className="flex items-center gap-2">
-                            <span className="font-medium text-sm">
-                              {comment.userName}
-                            </span>
-                            <span className="text-xs text-gray-500 dark:text-gray-400">
-                              {new Date(comment.createdAt).toLocaleDateString()}
-                            </span>
+                    {issue.comments.map((comment) => {
+                      const isAdminResponse =
+                        comment.userName.includes("Admin Response");
+                      return (
+                        <div
+                          key={comment.id}
+                          className={`flex gap-3 p-3 rounded-lg ${
+                            isAdminResponse
+                              ? "bg-blue-50 dark:bg-blue-950 border-l-4 border-blue-500"
+                              : ""
+                          }`}
+                        >
+                          <Avatar
+                            className={`h-8 w-8 ${isAdminResponse ? "bg-blue-600" : ""}`}
+                          >
+                            <AvatarFallback
+                              className={isAdminResponse ? "text-white" : ""}
+                            >
+                              {comment.userName.charAt(0).toUpperCase()}
+                            </AvatarFallback>
+                          </Avatar>
+                          <div className="flex-1 space-y-1">
+                            <div className="flex items-center gap-2">
+                              <span
+                                className={`font-medium text-sm ${isAdminResponse ? "text-blue-700 dark:text-blue-300" : ""}`}
+                              >
+                                {comment.userName}
+                              </span>
+                              {isAdminResponse && (
+                                <Badge
+                                  variant="default"
+                                  className="bg-blue-600 text-white text-xs"
+                                >
+                                  Official Response
+                                </Badge>
+                              )}
+                              <span className="text-xs text-gray-500 dark:text-gray-400">
+                                {new Date(
+                                  comment.createdAt,
+                                ).toLocaleDateString()}
+                              </span>
+                            </div>
+                            <p
+                              className={`text-sm ${isAdminResponse ? "text-blue-900 dark:text-blue-100 font-medium" : "text-gray-700 dark:text-gray-300"}`}
+                            >
+                              {comment.content}
+                            </p>
                           </div>
-                          <p className="text-sm text-gray-700 dark:text-gray-300">
-                            {comment.content}
-                          </p>
                         </div>
-                      </div>
-                    ))}
+                      );
+                    })}
                   </div>
                 ) : (
                   <div className="text-center py-8 text-gray-500 dark:text-gray-400">
