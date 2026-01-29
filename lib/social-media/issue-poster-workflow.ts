@@ -43,7 +43,6 @@ class IssueContentGenerator {
     }
 
     this.model = new ChatGoogleGenerativeAI({
-      model: process.env.GEMINI_MODEL || "gemini-1.5-flash",
       apiKey: apiKey,
       temperature: 0.7,
     });
