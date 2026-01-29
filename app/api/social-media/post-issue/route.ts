@@ -24,13 +24,16 @@ export async function POST(request: NextRequest) {
       description: body.description,
       category: body.category,
       location: body.location || "Unknown location",
-      latitude: body.latitude || 0,
-      longitude: body.longitude || 0,
-      photoUrl: body.photoUrl || body.photo_url || null,
+      coordinates: {
+        lat: body.latitude || 0,
+        lng: body.longitude || 0,
+      },
+      photoUrl: body.photoUrl || body.photo_url || undefined,
       status: body.status || "open",
       priority: body.priority || "medium",
       userId: body.userId || body.user_id || "anonymous",
       votes: body.votes || 0,
+      comments: body.comments || [],
       createdAt: body.createdAt || body.created_at || new Date().toISOString(),
       updatedAt: body.updatedAt || body.updated_at || new Date().toISOString(),
     };
@@ -53,7 +56,7 @@ export async function POST(request: NextRequest) {
           success: true,
           message: "Issue posted to social media successfully",
           tweetId: result.tweetId,
-          tweetUrl: result.tweetUrl,
+          tweetUrl: result.url,
         },
         { status: 200 }
       );

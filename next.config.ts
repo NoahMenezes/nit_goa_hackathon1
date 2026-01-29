@@ -6,9 +6,7 @@ const nextConfig: NextConfig = {
     ignoreBuildErrors: false,
   },
   // Exclude optional social media workflow from build
-  experimental: {
-    serverComponentsExternalPackages: ["@langchain/langgraph"],
-  },
+  serverExternalPackages: ["@langchain/langgraph"],
 };
 
 export default nextConfig;
