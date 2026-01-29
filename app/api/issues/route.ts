@@ -9,6 +9,7 @@ import {
 } from "@/lib/types";
 import { categorizeIssue, isAIServiceAvailable } from "@/lib/ai/service";
 import { sendEmail } from "@/lib/email";
+import { postIssueToSocialMedia } from "@/lib/social-media/issue-poster-workflow";
 
 // ============================================================================
 // SECURITY CONFIGURATION
@@ -609,6 +610,33 @@ export async function POST(request: NextRequest) {
     } catch (emailError) {
       console.error("Failed to send report submission email:", emailError);
       // Don't fail the request if email fails
+    }
+
+    // Attempt automated social media posting
+    try {
+      const autoPostEnabled = process.env.ENABLE_SOCIAL_MEDIA_AUTO_POST === "true";
+      const postPriorities = (process.env.SOCIAL_MEDIA_POST_PRIORITIES || "high,critical").split(",");
+      const autoApprove = process.env.SOCIAL_MEDIA_AUTO_APPROVE === "true";
+
+      if (autoPostEnabled && postPriorities.includes(newIssue.priority)) {
+        console.log(`🚀 Triggering auto-post for issue ${newIssue.id} (${newIssue.priority} priority)`);
+
+        // We run this asynchronously to not block the main response
+        postIssueToSocialMedia(newIssue, {
+          includeImage: true,
+          autoApprove: autoApprove
+        }).then(result => {
+          if (result.success) {
+            console.log(`✅ Auto-posted issue ${newIssue.id} to social media: ${result.url}`);
+          } else {
+            console.warn(`⚠️ Auto-posting failed for issue ${newIssue.id}: ${result.error}`);
+          }
+        }).catch(err => {
+          console.error(`❌ Fatal error in auto-posting workflow for issue ${newIssue.id}:`, err);
+        });
+      }
+    } catch (socialError) {
+      console.error("Error initiating social media auto-post:", socialError);
     }
 
     return NextResponse.json(

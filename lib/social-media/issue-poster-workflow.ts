@@ -397,49 +397,66 @@ function shouldUploadMedia(state: IssuePostingState): string {
  * Create the LangGraph workflow
  */
 function createWorkflow() {
-  // Create workflow with state channels
-  // @ts-expect-error - LangGraph StateGraph types are complex
+  // Create workflow with state schema
   const workflow = new StateGraph<IssuePostingState>({
     channels: {
-      issue: null,
-      includeImage: null,
-      tweetText: null,
-      mediaId: null,
-      shouldPost: null,
-      moderationReason: null,
-      result: null,
-      error: null,
-      moderationStatus: null,
-    },
+      issue: {
+        value: (x: Issue, y: Issue) => y ?? x,
+        default: () => ({} as Issue),
+      },
+      includeImage: {
+        value: (x: boolean, y: boolean) => y ?? x,
+        default: () => true,
+      },
+      tweetText: {
+        value: (x?: string, y?: string) => y ?? x,
+      },
+      mediaId: {
+        value: (x?: string, y?: string) => y ?? x,
+      },
+      shouldPost: {
+        value: (x: boolean, y: boolean) => y ?? x,
+        default: () => false,
+      },
+      result: {
+        value: (x?: TweetResult, y?: TweetResult) => y ?? x,
+      },
+      error: {
+        value: (x?: string, y?: string) => y ?? x,
+      },
+      attempts: {
+        value: (x: number, y: number) => x + y,
+        default: () => 0,
+      },
+      moderationStatus: {
+        value: (x: string, y: string) => y ?? x,
+        default: () => "pending",
+      }
+    } as any
   });
 
   // Add nodes
-  // @ts-expect-error - LangGraph node types
-  workflow.addNode("moderate_issue", moderateIssue);
-  // @ts-expect-error - LangGraph node types
-  workflow.addNode("generate_content", generateContent);
-  // @ts-expect-error - LangGraph node types
-  workflow.addNode("upload_media", uploadMedia);
-  // @ts-expect-error - LangGraph node types
-  workflow.addNode("post_to_twitter", postToTwitter);
+  workflow.addNode("moderate_issue", moderateIssue as any);
+  workflow.addNode("generate_content", generateContent as any);
+  workflow.addNode("upload_media", uploadMedia as any);
+  workflow.addNode("post_to_twitter", postToTwitter as any);
 
   // Define edges
-  // @ts-expect-error - LangGraph edge types
-  workflow.addEdge("__start__", "moderate_issue");
-  // @ts-expect-error - LangGraph conditional edge types
-  workflow.addConditionalEdges("moderate_issue", shouldProceedAfterModeration, {
+  const setup = workflow as any;
+  setup.addEdge(START, "moderate_issue");
+
+  setup.addConditionalEdges("moderate_issue", shouldProceedAfterModeration, {
     generate_content: "generate_content",
-    end: "__end__",
+    end: END,
   });
-  // @ts-expect-error - LangGraph conditional edge types
-  workflow.addConditionalEdges("generate_content", shouldUploadMedia, {
+
+  setup.addConditionalEdges("generate_content", shouldUploadMedia, {
     upload_media: "upload_media",
     post_to_twitter: "post_to_twitter",
   });
-  // @ts-expect-error - LangGraph edge types
-  workflow.addEdge("upload_media", "post_to_twitter");
-  // @ts-expect-error - LangGraph edge types
-  workflow.addEdge("post_to_twitter", "__end__");
+
+  setup.addEdge("upload_media", "post_to_twitter");
+  setup.addEdge("post_to_twitter", END);
 
   return workflow.compile();
 }
@@ -470,17 +487,16 @@ export async function postIssueToSocialMedia(
   try {
     const workflow = createWorkflow();
 
-    // @ts-expect-error - LangGraph state types
-    const initialState = {
+    const initialState: IssuePostingState = {
       issue,
       includeImage,
       shouldPost: autoApprove,
       moderationStatus: autoApprove ? "approved" : "pending",
+      attempts: 0,
     };
 
     // Run the workflow
-    // @ts-expect-error - LangGraph invoke types
-    const result = await workflow.invoke(initialState);
+    const result = await (workflow as any).invoke(initialState);
 
     console.log(`\n✅ Workflow completed`);
 
