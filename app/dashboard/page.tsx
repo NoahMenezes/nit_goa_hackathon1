@@ -22,6 +22,7 @@ import { Button } from "@/components/ui/button";
 import { BasicMapExample } from "@/components/my-map";
 import { ProtectedRoute } from "@/components/protected-route";
 import GradientBlinds from "@/components/ui/gradient-blinds";
+import { AdminResponses } from "@/components/admin-responses";
 
 export default function Page() {
   return (
@@ -345,6 +346,11 @@ function DashboardContent() {
                   </div>
                 </NeonGradientCard>
               </div>
+            </div>
+
+            {/* Admin Responses Section */}
+            <div className="px-4 lg:px-6">
+              <AdminResponses />
             </div>
           </div>
 

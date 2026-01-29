@@ -28,6 +28,12 @@ import {
   UserCog,
   Mic,
   RefreshCw,
+  Database,
+  Bell,
+  Lock,
+  Zap,
+  MessageSquare,
+  CalendarDays,
 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -147,6 +153,15 @@ export default function AdminDashboard() {
       bgColor: "bg-green-50 dark:bg-green-950",
     },
     {
+      title: "Voice Agent Response",
+      description:
+        "Generate and send responses to users via voice agent system",
+      icon: Mic,
+      href: "/admin/voice-agent",
+      color: "text-cyan-600 dark:text-cyan-400",
+      bgColor: "bg-cyan-50 dark:bg-cyan-950",
+    },
+    {
       title: "Audit Logs",
       description: "Review system activity, user actions, and security events",
       icon: FileText,
@@ -169,6 +184,62 @@ export default function AdminDashboard() {
       href: "/admin/settings",
       color: "text-indigo-600 dark:text-indigo-400",
       bgColor: "bg-indigo-50 dark:bg-indigo-950",
+    },
+    {
+      title: "Reports & Analytics",
+      description: "Generate detailed reports and export analytics data",
+      icon: FileText,
+      href: "/admin/reports",
+      color: "text-red-600 dark:text-red-400",
+      bgColor: "bg-red-50 dark:bg-red-950",
+    },
+    {
+      title: "Notifications Center",
+      description: "Manage and send notifications to users and staff",
+      icon: Bell,
+      href: "/admin/notifications",
+      color: "text-yellow-600 dark:text-yellow-400",
+      bgColor: "bg-yellow-50 dark:bg-yellow-950",
+    },
+    {
+      title: "Security & Permissions",
+      description: "Configure security policies and access controls",
+      icon: Lock,
+      href: "/admin/security",
+      color: "text-gray-600 dark:text-gray-400",
+      bgColor: "bg-gray-50 dark:bg-gray-950",
+    },
+    {
+      title: "Performance Monitor",
+      description: "Monitor system performance and resource usage",
+      icon: Zap,
+      href: "/admin/performance",
+      color: "text-lime-600 dark:text-lime-400",
+      bgColor: "bg-lime-50 dark:bg-lime-950",
+    },
+    {
+      title: "Feedback Management",
+      description: "Review and respond to user feedback and suggestions",
+      icon: MessageSquare,
+      href: "/admin/feedback",
+      color: "text-teal-600 dark:text-teal-400",
+      bgColor: "bg-teal-50 dark:bg-teal-950",
+    },
+    {
+      title: "Event Calendar",
+      description: "Schedule and manage civic events and maintenance",
+      icon: CalendarDays,
+      href: "/admin/calendar",
+      color: "text-violet-600 dark:text-violet-400",
+      bgColor: "bg-violet-50 dark:bg-violet-950",
+    },
+    {
+      title: "Data Management",
+      description: "Backup, restore, and manage system data",
+      icon: Database,
+      href: "/admin/data",
+      color: "text-emerald-600 dark:text-emerald-400",
+      bgColor: "bg-emerald-50 dark:bg-emerald-950",
     },
   ];
 
@@ -334,22 +405,16 @@ export default function AdminDashboard() {
                   View Pending Issues
                 </Button>
               </Link>
-              <Link href="/admin/analytics">
-                <Button variant="outline">
-                  <BarChart3 className="mr-2 h-4 w-4" />
-                  Generate Report
-                </Button>
-              </Link>
               <Link href="/admin/users?role=citizen">
                 <Button variant="outline">
                   <UserCog className="mr-2 h-4 w-4" />
                   Manage Users
                 </Button>
               </Link>
-              <Link href="/voice-agent">
+              <Link href="/admin/voice-agent">
                 <Button variant="outline">
                   <Mic className="mr-2 h-4 w-4" />
-                  Voice Agent
+                  Voice Agent Response
                 </Button>
               </Link>
               <Button
