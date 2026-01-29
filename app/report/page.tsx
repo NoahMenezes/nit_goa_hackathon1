@@ -760,7 +760,7 @@ function ReportIssueContent() {
 
                 {/* Camera Modal */}
                 {isCameraOpen && (
-                  <div className="fixed inset-0 bg-black/90 z-50 flex items-center justify-center p-4">
+                  <div className="fixed inset-0 bg-black/90 z-9999 flex items-center justify-center p-4">
                     <div className="relative w-full max-w-2xl">
                       <Button
                         type="button"
@@ -973,53 +973,6 @@ function ReportIssueContent() {
             </form>
           </CardContent>
         </Card>
-
-        {/* Info Cards */}
-        <div className="grid md:grid-cols-3 gap-4 mt-8">
-          <Card className="border-gray-200/50 dark:border-gray-800/50 bg-white/70 dark:bg-gray-950/70 backdrop-blur-lg shadow-xl transition-all duration-300 ease-out hover:scale-[1.03] hover:-translate-y-1 hover:shadow-2xl cursor-pointer">
-            <CardHeader className="pb-3">
-              <CardTitle className="text-sm flex items-center gap-1">
-                <Sparkles className="h-4 w-4 text-purple-500" />
-                AI Powered
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              <p className="text-xs text-gray-600 dark:text-gray-400">
-                Use AI to automatically categorize and prioritize your reports.
-              </p>
-            </CardContent>
-          </Card>
-          <Card className="border-gray-200/50 dark:border-gray-800/50 bg-white/70 dark:bg-gray-950/70 backdrop-blur-lg shadow-xl transition-all duration-300 ease-out hover:scale-[1.03] hover:-translate-y-1 hover:shadow-2xl cursor-pointer">
-            <CardHeader className="pb-3">
-              <CardTitle className="text-sm">Quick Response</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <p className="text-xs text-gray-600 dark:text-gray-400">
-                Your report will be reviewed by authorities within 24-48 hours.
-              </p>
-            </CardContent>
-          </Card>
-          <Card className="border-gray-200/50 dark:border-gray-800/50 bg-white/70 dark:bg-gray-950/70 backdrop-blur-lg shadow-xl transition-all duration-300 ease-out hover:scale-[1.03] hover:-translate-y-1 hover:shadow-2xl cursor-pointer">
-            <CardHeader className="pb-3">
-              <CardTitle className="text-sm">Track Progress</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <p className="text-xs text-gray-600 dark:text-gray-400">
-                Monitor your issue status in real-time on the map and dashboard.
-              </p>
-            </CardContent>
-          </Card>
-          <Card className="border-gray-200/50 dark:border-gray-800/50 bg-white/70 dark:bg-gray-950/70 backdrop-blur-lg shadow-xl transition-all duration-300 ease-out hover:scale-[1.03] hover:-translate-y-1 hover:shadow-2xl cursor-pointer">
-            <CardHeader className="pb-3">
-              <CardTitle className="text-sm">Community Impact</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <p className="text-xs text-gray-600 dark:text-gray-400">
-                Help improve your neighborhood and make a difference together.
-              </p>
-            </CardContent>
-          </Card>
-        </div>
       </div>
     </div>
   );
