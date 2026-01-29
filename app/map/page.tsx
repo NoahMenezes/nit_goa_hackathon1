@@ -8,6 +8,7 @@ import { InteractiveMap } from "@/components/interactive-map";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { BorderBeam } from "@/components/magicui/border-beam";
 import { Issue } from "@/lib/types";
+import { Silk } from "@/components/ui/silk";
 
 import toast from "react-hot-toast";
 import { ProtectedRoute } from "@/components/protected-route";
@@ -129,9 +130,20 @@ function MapPageContent() {
   };
 
   return (
-    <div className="flex min-h-screen flex-col bg-white dark:bg-black">
+    <div className="flex min-h-screen flex-col bg-white dark:bg-black relative">
+      {/* Silk Background */}
+      <div className="fixed inset-0 w-full h-full -z-10 opacity-30 dark:opacity-20">
+        <Silk
+          speed={3}
+          scale={1.2}
+          color="#7B7481"
+          noiseIntensity={1.5}
+          rotation={0}
+        />
+      </div>
+
       {/* Main Content */}
-      <main className="flex-1">
+      <main className="flex-1 relative z-10">
         <div className="container mx-auto px-4 py-8">
           {/* Page Header */}
           <div className="mb-8 flex items-center justify-between">
