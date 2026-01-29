@@ -1,14 +1,41 @@
-// Supabase client configuration for OurStreet
+// Dual Supabase client configuration for OurStreet
+// Supports separate databases for Citizens and Admins
 import { createClient, SupabaseClient } from "@supabase/supabase-js";
 
-// Get Supabase credentials from environment variables
-const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || "";
-const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || "";
-const supabaseServiceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY || "";
+// ============================================================================
+// CITIZEN DATABASE CONFIGURATION
+// ============================================================================
+const citizenSupabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_CITIZEN_URL || "";
+const citizenSupabaseAnonKey =
+  process.env.NEXT_PUBLIC_SUPABASE_CITIZEN_ANON_KEY || "";
+const citizenSupabaseServiceRoleKey =
+  process.env.SUPABASE_CITIZEN_SERVICE_ROLE_KEY || "";
+
+// ============================================================================
+// ADMIN DATABASE CONFIGURATION
+// ============================================================================
+const adminSupabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_ADMIN_URL || "";
+const adminSupabaseAnonKey =
+  process.env.NEXT_PUBLIC_SUPABASE_ADMIN_ANON_KEY || "";
+const adminSupabaseServiceRoleKey =
+  process.env.SUPABASE_ADMIN_SERVICE_ROLE_KEY || "";
+
+// ============================================================================
+// BACKWARD COMPATIBILITY (Legacy single database)
+// ============================================================================
+// Support old environment variables for backward compatibility
+const legacySupabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || "";
+const legacySupabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || "";
+const legacySupabaseServiceRoleKey =
+  process.env.SUPABASE_SERVICE_ROLE_KEY || "";
 
 // Environment detection
 const isProduction = process.env.NODE_ENV === "production";
 const isDevelopment = process.env.NODE_ENV === "development";
+
+// ============================================================================
+// VALIDATION HELPERS
+// ============================================================================
 
 // Validate Supabase URL format
 function isValidSupabaseUrl(url: string): boolean {
@@ -24,73 +51,95 @@ function isValidSupabaseUrl(url: string): boolean {
   }
 }
 
-// Configuration status logging
-if (!supabaseUrl || !supabaseAnonKey) {
+// Check if citizen database is configured
+export function isCitizenDbConfigured(): boolean {
+  return Boolean(
+    citizenSupabaseUrl &&
+    citizenSupabaseAnonKey &&
+    isValidSupabaseUrl(citizenSupabaseUrl),
+  );
+}
+
+// Check if admin database is configured
+export function isAdminDbConfigured(): boolean {
+  return Boolean(
+    adminSupabaseUrl &&
+    adminSupabaseAnonKey &&
+    isValidSupabaseUrl(adminSupabaseUrl),
+  );
+}
+
+// Check if legacy database is configured (for backward compatibility)
+function isLegacyDbConfigured(): boolean {
+  return Boolean(
+    legacySupabaseUrl &&
+    legacySupabaseAnonKey &&
+    isValidSupabaseUrl(legacySupabaseUrl),
+  );
+}
+
+// Check if any Supabase configuration exists
+export function isSupabaseConfigured(): boolean {
+  return (
+    isCitizenDbConfigured() || isAdminDbConfigured() || isLegacyDbConfigured()
+  );
+}
+
+// ============================================================================
+// CONFIGURATION STATUS LOGGING
+// ============================================================================
+
+if (!isCitizenDbConfigured() && !isLegacyDbConfigured()) {
   if (isProduction) {
     console.error(
-      "❌ CRITICAL: Supabase credentials not configured in production!\n" +
-        "   Set NEXT_PUBLIC_SUPABASE_URL and NEXT_PUBLIC_SUPABASE_ANON_KEY.\n" +
-        "   App will fall back to in-memory database (DATA WILL BE LOST).",
+      "❌ CRITICAL: Citizen Supabase database not configured in production!\n" +
+        "   Set NEXT_PUBLIC_SUPABASE_CITIZEN_URL and NEXT_PUBLIC_SUPABASE_CITIZEN_ANON_KEY.\n" +
+        "   App will fall back to in-memory database for citizens (DATA WILL BE LOST).",
     );
   } else {
     console.warn(
-      "⚠️ Supabase not configured - using in-memory database.\n" +
-        "   To persist data, set NEXT_PUBLIC_SUPABASE_URL and NEXT_PUBLIC_SUPABASE_ANON_KEY.",
+      "⚠️ Citizen database not configured - using in-memory database.\n" +
+        "   To persist citizen data, set NEXT_PUBLIC_SUPABASE_CITIZEN_URL and NEXT_PUBLIC_SUPABASE_CITIZEN_ANON_KEY.",
     );
   }
-} else if (!isValidSupabaseUrl(supabaseUrl)) {
-  console.error(
-    `❌ Invalid NEXT_PUBLIC_SUPABASE_URL format: ${supabaseUrl}\n` +
-      "   Expected format: https://your-project.supabase.co",
-  );
 }
 
-if (!supabaseServiceRoleKey && isProduction) {
+if (!isAdminDbConfigured() && !isLegacyDbConfigured()) {
+  if (isProduction) {
+    console.error(
+      "❌ CRITICAL: Admin Supabase database not configured in production!\n" +
+        "   Set NEXT_PUBLIC_SUPABASE_ADMIN_URL and NEXT_PUBLIC_SUPABASE_ADMIN_ANON_KEY.\n" +
+        "   App will fall back to in-memory database for admins (DATA WILL BE LOST).",
+    );
+  } else {
+    console.warn(
+      "⚠️ Admin database not configured - using in-memory database.\n" +
+        "   To persist admin data, set NEXT_PUBLIC_SUPABASE_ADMIN_URL and NEXT_PUBLIC_SUPABASE_ADMIN_ANON_KEY.",
+    );
+  }
+}
+
+if (isLegacyDbConfigured() && isProduction) {
   console.warn(
-    "⚠️ SUPABASE_SERVICE_ROLE_KEY not found. Admin operations may fail.\n" +
-      "   Find this in Supabase Dashboard → Settings → API → service_role key.",
+    "⚠️ Using legacy single-database configuration.\n" +
+      "   Consider migrating to dual-database setup for better security.",
   );
 }
 
-// Helper to check if Supabase is configured
-export function isSupabaseConfigured(): boolean {
-  return Boolean(
-    supabaseUrl && supabaseAnonKey && isValidSupabaseUrl(supabaseUrl),
-  );
-}
+// ============================================================================
+// SUPABASE CLIENT INSTANCES
+// ============================================================================
 
-// Get detailed configuration status (useful for health checks)
-export function getSupabaseStatus(): {
-  configured: boolean;
-  hasUrl: boolean;
-  hasAnonKey: boolean;
-  hasServiceKey: boolean;
-  urlValid: boolean;
-} {
-  return {
-    configured: isSupabaseConfigured(),
-    hasUrl: Boolean(supabaseUrl),
-    hasAnonKey: Boolean(supabaseAnonKey),
-    hasServiceKey: Boolean(supabaseServiceRoleKey),
-    urlValid: isValidSupabaseUrl(supabaseUrl),
-  };
-}
-
-// Create Supabase client only if configured (for client-side/public operations)
-export const supabase: SupabaseClient | null = isSupabaseConfigured()
-  ? createClient(supabaseUrl, supabaseAnonKey, {
+// Create Citizen Supabase client (for client-side/public operations)
+export const citizenSupabase: SupabaseClient | null = isCitizenDbConfigured()
+  ? createClient(citizenSupabaseUrl, citizenSupabaseAnonKey, {
       auth: {
         persistSession: false, // We're using JWT tokens instead
         autoRefreshToken: false,
       },
     })
-  : null;
-
-// Create Supabase admin client with service role key (for server-side operations)
-// This bypasses RLS policies and should ONLY be used in API routes
-export const supabaseAdmin: SupabaseClient | null =
-  supabaseUrl && supabaseServiceRoleKey
-    ? createClient(supabaseUrl, supabaseServiceRoleKey, {
+  : isLegacyDbConfigured()
+    ? createClient(legacySupabaseUrl, legacySupabaseAnonKey, {
         auth: {
           persistSession: false,
           autoRefreshToken: false,
@@ -98,33 +147,181 @@ export const supabaseAdmin: SupabaseClient | null =
       })
     : null;
 
-// Helper to get the appropriate client based on context
+// Create Citizen Supabase admin client (for server-side operations)
+export const citizenSupabaseAdmin: SupabaseClient | null =
+  citizenSupabaseUrl && citizenSupabaseServiceRoleKey
+    ? createClient(citizenSupabaseUrl, citizenSupabaseServiceRoleKey, {
+        auth: {
+          persistSession: false,
+          autoRefreshToken: false,
+        },
+      })
+    : legacySupabaseUrl && legacySupabaseServiceRoleKey
+      ? createClient(legacySupabaseUrl, legacySupabaseServiceRoleKey, {
+          auth: {
+            persistSession: false,
+            autoRefreshToken: false,
+          },
+        })
+      : null;
+
+// Create Admin Supabase client (for client-side/public operations)
+export const adminSupabase: SupabaseClient | null = isAdminDbConfigured()
+  ? createClient(adminSupabaseUrl, adminSupabaseAnonKey, {
+      auth: {
+        persistSession: false,
+        autoRefreshToken: false,
+      },
+    })
+  : isLegacyDbConfigured()
+    ? createClient(legacySupabaseUrl, legacySupabaseAnonKey, {
+        auth: {
+          persistSession: false,
+          autoRefreshToken: false,
+        },
+      })
+    : null;
+
+// Create Admin Supabase admin client (for server-side operations)
+export const adminSupabaseAdmin: SupabaseClient | null =
+  adminSupabaseUrl && adminSupabaseServiceRoleKey
+    ? createClient(adminSupabaseUrl, adminSupabaseServiceRoleKey, {
+        auth: {
+          persistSession: false,
+          autoRefreshToken: false,
+        },
+      })
+    : legacySupabaseUrl && legacySupabaseServiceRoleKey
+      ? createClient(legacySupabaseUrl, legacySupabaseServiceRoleKey, {
+          auth: {
+            persistSession: false,
+            autoRefreshToken: false,
+          },
+        })
+      : null;
+
+// Legacy exports for backward compatibility
+export const supabase = citizenSupabase;
+export const supabaseAdmin = citizenSupabaseAdmin;
+
+// ============================================================================
+// CLIENT GETTER FUNCTIONS
+// ============================================================================
+
+export type UserType = "citizen" | "admin";
+
+/**
+ * Get the appropriate Supabase client based on user type
+ * @param userType - "citizen" or "admin"
+ * @param useServiceRole - Whether to use service role key (for server-side)
+ */
 export function getSupabaseClient(
+  userType: UserType = "citizen",
   useServiceRole = false,
 ): SupabaseClient | null {
-  if (useServiceRole && supabaseAdmin) {
-    return supabaseAdmin;
+  if (userType === "admin") {
+    return useServiceRole ? adminSupabaseAdmin : adminSupabase;
   }
-  return supabase;
+  return useServiceRole ? citizenSupabaseAdmin : citizenSupabase;
 }
 
-// Test database connection (useful for health checks)
-export async function testConnection(): Promise<{
+/**
+ * Get Supabase client from user role string
+ * @param role - User role (e.g., "citizen", "admin", "user")
+ * @param useServiceRole - Whether to use service role key
+ */
+export function getSupabaseClientByRole(
+  role: string,
+  useServiceRole = false,
+): SupabaseClient | null {
+  const userType: UserType = role === "admin" ? "admin" : "citizen";
+  return getSupabaseClient(userType, useServiceRole);
+}
+
+// ============================================================================
+// STATUS HELPERS
+// ============================================================================
+
+/**
+ * Get detailed configuration status for both databases
+ */
+export function getSupabaseStatus(): {
+  citizen: {
+    configured: boolean;
+    hasUrl: boolean;
+    hasAnonKey: boolean;
+    hasServiceKey: boolean;
+    urlValid: boolean;
+  };
+  admin: {
+    configured: boolean;
+    hasUrl: boolean;
+    hasAnonKey: boolean;
+    hasServiceKey: boolean;
+    urlValid: boolean;
+  };
+  legacy: {
+    configured: boolean;
+    hasUrl: boolean;
+    hasAnonKey: boolean;
+    hasServiceKey: boolean;
+    urlValid: boolean;
+  };
+  anyConfigured: boolean;
+};
+
+export function getSupabaseStatus() {
+  return {
+    citizen: {
+      configured: isCitizenDbConfigured(),
+      hasUrl: Boolean(citizenSupabaseUrl),
+      hasAnonKey: Boolean(citizenSupabaseAnonKey),
+      hasServiceKey: Boolean(citizenSupabaseServiceRoleKey),
+      urlValid: isValidSupabaseUrl(citizenSupabaseUrl),
+    },
+    admin: {
+      configured: isAdminDbConfigured(),
+      hasUrl: Boolean(adminSupabaseUrl),
+      hasAnonKey: Boolean(adminSupabaseAnonKey),
+      hasServiceKey: Boolean(adminSupabaseServiceRoleKey),
+      urlValid: isValidSupabaseUrl(adminSupabaseUrl),
+    },
+    legacy: {
+      configured: isLegacyDbConfigured(),
+      hasUrl: Boolean(legacySupabaseUrl),
+      hasAnonKey: Boolean(legacySupabaseAnonKey),
+      hasServiceKey: Boolean(legacySupabaseServiceRoleKey),
+      urlValid: isValidSupabaseUrl(legacySupabaseUrl),
+    },
+    anyConfigured: isSupabaseConfigured(),
+  };
+}
+
+// ============================================================================
+// CONNECTION TESTING
+// ============================================================================
+
+/**
+ * Test database connection for a specific user type
+ */
+export async function testConnection(userType: UserType = "citizen"): Promise<{
   connected: boolean;
   latencyMs?: number;
   error?: string;
 }> {
-  if (!supabase) {
+  const client = getSupabaseClient(userType, false);
+
+  if (!client) {
     return {
       connected: false,
-      error: "Supabase client not configured",
+      error: `${userType} Supabase client not configured`,
     };
   }
 
   const startTime = Date.now();
   try {
     // Simple query to test connection
-    const { error } = await supabase.from("users").select("id").limit(1);
+    const { error } = await client.from("users").select("id").limit(1);
     const latencyMs = Date.now() - startTime;
 
     if (error) {
@@ -136,7 +333,7 @@ export async function testConnection(): Promise<{
         return {
           connected: true, // Connection works, just missing table
           latencyMs,
-          error: "Database tables not set up. Run migrations.",
+          error: `${userType} database tables not set up. Run migrations.`,
         };
       }
       return {
@@ -154,12 +351,44 @@ export async function testConnection(): Promise<{
     return {
       connected: false,
       latencyMs: Date.now() - startTime,
-      error: err instanceof Error ? err.message : "Unknown connection error",
+      error:
+        err instanceof Error
+          ? err.message
+          : `Unknown connection error for ${userType} database`,
     };
   }
 }
 
-// Database types for TypeScript
+/**
+ * Test connections for both databases
+ */
+export async function testAllConnections(): Promise<{
+  citizen: {
+    connected: boolean;
+    latencyMs?: number;
+    error?: string;
+  };
+  admin: {
+    connected: boolean;
+    latencyMs?: number;
+    error?: string;
+  };
+}> {
+  const [citizenResult, adminResult] = await Promise.all([
+    testConnection("citizen"),
+    testConnection("admin"),
+  ]);
+
+  return {
+    citizen: citizenResult,
+    admin: adminResult,
+  };
+}
+
+// ============================================================================
+// DATABASE TYPES
+// ============================================================================
+
 export type Database = {
   public: {
     Tables: {

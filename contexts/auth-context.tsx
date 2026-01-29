@@ -16,6 +16,7 @@ interface AuthContextType {
   login: (
     email: string,
     password: string,
+    userType?: "citizen" | "admin",
   ) => Promise<{ success: boolean; error?: string }>;
   signup: (
     name: string,
@@ -116,10 +117,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }, [sessionChecked, user]);
 
   // Login function
-  const login = async (email: string, password: string) => {
+  const login = async (
+    email: string,
+    password: string,
+    userType: "citizen" | "admin" = "citizen",
+  ) => {
     try {
       setIsLoading(true);
-      const response = await authAPI.login({ email, password });
+      const response = await authAPI.login({ email, password, userType });
 
       if (response.success && response.user) {
         setUser(response.user);

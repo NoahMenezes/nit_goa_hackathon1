@@ -14,6 +14,20 @@ interface HealthStatus {
       status: "up" | "down";
       responseTime?: number;
       error?: string;
+      citizen?: {
+        configured: boolean;
+        hasUrl: boolean;
+        hasAnonKey: boolean;
+        hasServiceKey: boolean;
+        urlValid: boolean;
+      };
+      admin?: {
+        configured: boolean;
+        hasUrl: boolean;
+        hasAnonKey: boolean;
+        hasServiceKey: boolean;
+        urlValid: boolean;
+      };
     };
     storage: {
       status: "configured" | "not_configured";
@@ -43,9 +57,9 @@ export async function GET(_request: NextRequest) {
     const supabaseStatus = getSupabaseStatus();
 
     try {
-      if (supabaseStatus.configured) {
-        // Test actual Supabase connection
-        const connectionTest = await testConnection();
+      if (supabaseStatus.anyConfigured) {
+        // Test actual Supabase connection (test citizen DB by default)
+        const connectionTest = await testConnection("citizen");
         dbResponseTime = connectionTest.latencyMs;
         dbStatus = connectionTest.connected ? "up" : "down";
         dbError = connectionTest.error;
@@ -71,10 +85,7 @@ export async function GET(_request: NextRequest) {
       process.env.NEXT_PUBLIC_CLOUDINARY_CLOUD_NAME &&
       process.env.NEXT_PUBLIC_CLOUDINARY_UPLOAD_PRESET
     );
-    const supabaseConfigured = !!(
-      process.env.NEXT_PUBLIC_SUPABASE_URL &&
-      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
-    );
+    const supabaseConfigured = supabaseStatus.anyConfigured;
 
     const storageStatus =
       cloudinaryConfigured || supabaseConfigured
@@ -95,13 +106,19 @@ export async function GET(_request: NextRequest) {
     }
 
     // Check for Supabase in production
-    if (process.env.NODE_ENV === "production" && !supabaseStatus.configured) {
+    if (
+      process.env.NODE_ENV === "production" &&
+      !supabaseStatus.anyConfigured
+    ) {
       envWarnings.push(
         "Supabase not configured in production - using in-memory database",
       );
     }
 
-    if (!supabaseStatus.urlValid && supabaseStatus.hasUrl) {
+    if (
+      (!supabaseStatus.citizen.urlValid && supabaseStatus.citizen.hasUrl) ||
+      (!supabaseStatus.admin.urlValid && supabaseStatus.admin.hasUrl)
+    ) {
       envWarnings.push("Invalid Supabase URL format");
     }
 
@@ -133,6 +150,8 @@ export async function GET(_request: NextRequest) {
           status: dbStatus,
           responseTime: dbResponseTime,
           error: dbError,
+          citizen: supabaseStatus.citizen,
+          admin: supabaseStatus.admin,
         },
         storage: {
           status: storageStatus,

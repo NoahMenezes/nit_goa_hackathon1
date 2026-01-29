@@ -74,7 +74,7 @@ export class GeminiAnalyticsClient {
    */
   async analyzeWardPerformance(
     data: WardAnalyticsData,
-    metrics: PerformanceMetrics
+    metrics: PerformanceMetrics,
   ): Promise<AIAnalysisResult> {
     if (!this.isConfigured) {
       return this.getFallbackAnalysis(data, metrics);
@@ -82,6 +82,9 @@ export class GeminiAnalyticsClient {
 
     try {
       const prompt = this.buildWardAnalysisPrompt(data, metrics);
+      if (!this.model) {
+        return this.getFallbackAnalysis(data, metrics);
+      }
       const result = await this.model.generateContent(prompt);
       const response = await result.response;
       const text = response.text();
@@ -97,7 +100,7 @@ export class GeminiAnalyticsClient {
    * Generate comparative analysis across multiple wards
    */
   async compareWards(
-    wards: Array<WardAnalyticsData & { metrics: PerformanceMetrics }>
+    wards: Array<WardAnalyticsData & { metrics: PerformanceMetrics }>,
   ): Promise<{
     summary: string;
     rankings: Array<{ wardName: string; rank: number; score: number }>;
@@ -109,6 +112,9 @@ export class GeminiAnalyticsClient {
 
     try {
       const prompt = this.buildComparisonPrompt(wards);
+      if (!this.model) {
+        return this.getFallbackComparison(wards);
+      }
       const result = await this.model.generateContent(prompt);
       const response = await result.response;
       const text = response.text();
@@ -123,9 +129,7 @@ export class GeminiAnalyticsClient {
   /**
    * Generate impact report with AI-powered insights
    */
-  async generateImpactReport(
-    data: ImpactReportData
-  ): Promise<{
+  async generateImpactReport(data: ImpactReportData): Promise<{
     summary: string;
     keyAchievements: string[];
     challenges: string[];
@@ -138,6 +142,9 @@ export class GeminiAnalyticsClient {
 
     try {
       const prompt = this.buildImpactReportPrompt(data);
+      if (!this.model) {
+        return this.getFallbackImpactReport(data);
+      }
       const result = await this.model.generateContent(prompt);
       const response = await result.response;
       const text = response.text();
@@ -158,7 +165,7 @@ export class GeminiAnalyticsClient {
       issues: number;
       resolved: number;
       category: string;
-    }>
+    }>,
   ): Promise<{
     predictions: Array<{ period: string; expectedIssues: number }>;
     confidence: number;
@@ -170,6 +177,9 @@ export class GeminiAnalyticsClient {
 
     try {
       const prompt = this.buildPredictionPrompt(historicalData);
+      if (!this.model) {
+        return this.getFallbackPrediction(historicalData);
+      }
       const result = await this.model.generateContent(prompt);
       const response = await result.response;
       const text = response.text();
@@ -190,7 +200,7 @@ export class GeminiAnalyticsClient {
       staff: number;
       budget: number;
       equipment: string[];
-    }
+    },
   ): Promise<{
     staffAllocation: Array<{ category: string; count: number }>;
     budgetAllocation: Array<{ category: string; amount: number }>;
@@ -198,11 +208,20 @@ export class GeminiAnalyticsClient {
     reasoning: string;
   }> {
     if (!this.isConfigured) {
-      return this.getFallbackResourceRecommendation(wardData, availableResources);
+      return this.getFallbackResourceRecommendation(
+        wardData,
+        availableResources,
+      );
     }
 
     try {
       const prompt = this.buildResourcePrompt(wardData, availableResources);
+      if (!this.model) {
+        return this.getFallbackResourceRecommendation(
+          wardData,
+          availableResources,
+        );
+      }
       const result = await this.model.generateContent(prompt);
       const response = await result.response;
       const text = response.text();
@@ -210,14 +229,17 @@ export class GeminiAnalyticsClient {
       return this.parseResourceResponse(text, wardData, availableResources);
     } catch (error) {
       console.error("Gemini API error:", error);
-      return this.getFallbackResourceRecommendation(wardData, availableResources);
+      return this.getFallbackResourceRecommendation(
+        wardData,
+        availableResources,
+      );
     }
   }
 
   // Private helper methods
   private buildWardAnalysisPrompt(
     data: WardAnalyticsData,
-    metrics: PerformanceMetrics
+    metrics: PerformanceMetrics,
   ): string {
     return `
 You are an AI analyst for a civic issue management system. Analyze the following ward performance data and provide actionable insights.
@@ -261,13 +283,13 @@ Format your response as JSON with keys: insights, recommendations (array), trend
   }
 
   private buildComparisonPrompt(
-    wards: Array<WardAnalyticsData & { metrics: PerformanceMetrics }>
+    wards: Array<WardAnalyticsData & { metrics: PerformanceMetrics }>,
   ): string {
     const wardSummaries = wards.map(
       (w) => `
 ${w.wardName}: ${w.resolvedIssues}/${w.totalIssues} resolved (${((w.resolvedIssues / w.totalIssues) * 100).toFixed(1)}%),
 Resolution Time: ${w.avgResolutionHours.toFixed(1)}h, Satisfaction: ${w.metrics.citizenSatisfaction.toFixed(1)}/5
-`
+`,
     );
 
     return `
@@ -315,7 +337,7 @@ Format as JSON with keys: summary, keyAchievements (array), challenges (array), 
       issues: number;
       resolved: number;
       category: string;
-    }>
+    }>,
   ): string {
     return `
 Based on this historical data, predict issue trends for the next 4 weeks:
@@ -337,7 +359,7 @@ Format as JSON with keys: predictions (array with period, expectedIssues), confi
       staff: number;
       budget: number;
       equipment: string[];
-    }
+    },
   ): string {
     return `
 Given this ward data and available resources, recommend optimal allocation:
@@ -364,11 +386,12 @@ Format as JSON with keys: staffAllocation (array), budgetAllocation (array), equ
   private parseAnalysisResponse(
     text: string,
     data: WardAnalyticsData,
-    metrics: PerformanceMetrics
+    metrics: PerformanceMetrics,
   ): AIAnalysisResult {
     try {
       // Extract JSON from markdown code blocks if present
-      const jsonMatch = text.match(/```json\s*([\s\S]*?)\s*```/) || text.match(/\{[\s\S]*\}/);
+      const jsonMatch =
+        text.match(/```json\s*([\s\S]*?)\s*```/) || text.match(/\{[\s\S]*\}/);
       if (jsonMatch) {
         const parsed = JSON.parse(jsonMatch[1] || jsonMatch[0]);
         return {
@@ -378,7 +401,9 @@ Format as JSON with keys: staffAllocation (array), budgetAllocation (array), equ
             direction: parsed.trendDirection || "stable",
             keyFactors: parsed.trendFactors || [],
           },
-          performanceScore: parsed.performanceScore || this.calculatePerformanceScore(data, metrics),
+          performanceScore:
+            parsed.performanceScore ||
+            this.calculatePerformanceScore(data, metrics),
           priorityActions: parsed.priorityActions || [],
         };
       }
@@ -391,14 +416,15 @@ Format as JSON with keys: staffAllocation (array), budgetAllocation (array), equ
 
   private parseComparisonResponse(
     text: string,
-    wards: Array<WardAnalyticsData & { metrics: PerformanceMetrics }>
+    wards: Array<WardAnalyticsData & { metrics: PerformanceMetrics }>,
   ): {
     summary: string;
     rankings: Array<{ wardName: string; rank: number; score: number }>;
     insights: string[];
   } {
     try {
-      const jsonMatch = text.match(/```json\s*([\s\S]*?)\s*```/) || text.match(/\{[\s\S]*\}/);
+      const jsonMatch =
+        text.match(/```json\s*([\s\S]*?)\s*```/) || text.match(/\{[\s\S]*\}/);
       if (jsonMatch) {
         return JSON.parse(jsonMatch[1] || jsonMatch[0]);
       }
@@ -411,7 +437,7 @@ Format as JSON with keys: staffAllocation (array), budgetAllocation (array), equ
 
   private parseImpactReportResponse(
     text: string,
-    data: ImpactReportData
+    data: ImpactReportData,
   ): {
     summary: string;
     keyAchievements: string[];
@@ -420,7 +446,8 @@ Format as JSON with keys: staffAllocation (array), budgetAllocation (array), equ
     impactScore: number;
   } {
     try {
-      const jsonMatch = text.match(/```json\s*([\s\S]*?)\s*```/) || text.match(/\{[\s\S]*\}/);
+      const jsonMatch =
+        text.match(/```json\s*([\s\S]*?)\s*```/) || text.match(/\{[\s\S]*\}/);
       if (jsonMatch) {
         return JSON.parse(jsonMatch[1] || jsonMatch[0]);
       }
@@ -438,14 +465,15 @@ Format as JSON with keys: staffAllocation (array), budgetAllocation (array), equ
       issues: number;
       resolved: number;
       category: string;
-    }>
+    }>,
   ): {
     predictions: Array<{ period: string; expectedIssues: number }>;
     confidence: number;
     factors: string[];
   } {
     try {
-      const jsonMatch = text.match(/```json\s*([\s\S]*?)\s*```/) || text.match(/\{[\s\S]*\}/);
+      const jsonMatch =
+        text.match(/```json\s*([\s\S]*?)\s*```/) || text.match(/\{[\s\S]*\}/);
       if (jsonMatch) {
         return JSON.parse(jsonMatch[1] || jsonMatch[0]);
       }
@@ -463,7 +491,7 @@ Format as JSON with keys: staffAllocation (array), budgetAllocation (array), equ
       staff: number;
       budget: number;
       equipment: string[];
-    }
+    },
   ): {
     staffAllocation: Array<{ category: string; count: number }>;
     budgetAllocation: Array<{ category: string; amount: number }>;
@@ -471,7 +499,8 @@ Format as JSON with keys: staffAllocation (array), budgetAllocation (array), equ
     reasoning: string;
   } {
     try {
-      const jsonMatch = text.match(/```json\s*([\s\S]*?)\s*```/) || text.match(/\{[\s\S]*\}/);
+      const jsonMatch =
+        text.match(/```json\s*([\s\S]*?)\s*```/) || text.match(/\{[\s\S]*\}/);
       if (jsonMatch) {
         return JSON.parse(jsonMatch[1] || jsonMatch[0]);
       }
@@ -484,37 +513,46 @@ Format as JSON with keys: staffAllocation (array), budgetAllocation (array), equ
 
   private calculatePerformanceScore(
     data: WardAnalyticsData,
-    metrics: PerformanceMetrics
+    metrics: PerformanceMetrics,
   ): number {
-    const resolutionRate = (data.resolvedIssues / Math.max(data.totalIssues, 1)) * 100;
+    const resolutionRate =
+      (data.resolvedIssues / Math.max(data.totalIssues, 1)) * 100;
     const satisfactionScore = (metrics.citizenSatisfaction / 5) * 100;
     const slaScore = metrics.slaComplianceRate;
-    const efficiencyScore = 100 - Math.min((data.avgResolutionHours / 72) * 100, 100);
+    const efficiencyScore =
+      100 - Math.min((data.avgResolutionHours / 72) * 100, 100);
 
     return Math.round(
       resolutionRate * 0.3 +
-      satisfactionScore * 0.25 +
-      slaScore * 0.25 +
-      efficiencyScore * 0.2
+        satisfactionScore * 0.25 +
+        slaScore * 0.25 +
+        efficiencyScore * 0.2,
     );
   }
 
   private getFallbackAnalysis(
     data: WardAnalyticsData,
-    metrics: PerformanceMetrics
+    metrics: PerformanceMetrics,
   ): AIAnalysisResult {
     const score = this.calculatePerformanceScore(data, metrics);
-    const resolutionRate = (data.resolvedIssues / Math.max(data.totalIssues, 1)) * 100;
+    const resolutionRate =
+      (data.resolvedIssues / Math.max(data.totalIssues, 1)) * 100;
 
     const recommendations: string[] = [];
     if (data.criticalIssues > data.totalIssues * 0.1) {
-      recommendations.push("Prioritize critical issues - they exceed 10% of total issues");
+      recommendations.push(
+        "Prioritize critical issues - they exceed 10% of total issues",
+      );
     }
     if (metrics.slaComplianceRate < 90) {
-      recommendations.push("Improve SLA compliance through better resource allocation");
+      recommendations.push(
+        "Improve SLA compliance through better resource allocation",
+      );
     }
     if (data.avgResolutionHours > 48) {
-      recommendations.push("Reduce average resolution time with process optimization");
+      recommendations.push(
+        "Reduce average resolution time with process optimization",
+      );
     }
     if (metrics.citizenSatisfaction < 4.0) {
       recommendations.push("Enhance citizen communication and engagement");
@@ -522,10 +560,20 @@ Format as JSON with keys: staffAllocation (array), budgetAllocation (array), equ
 
     return {
       insights: `Ward ${data.wardName} has ${resolutionRate.toFixed(1)}% resolution rate with ${data.openIssues} open issues. Performance score: ${score}/100.`,
-      recommendations: recommendations.length > 0 ? recommendations : ["Continue current practices"],
+      recommendations:
+        recommendations.length > 0
+          ? recommendations
+          : ["Continue current practices"],
       trendAnalysis: {
-        direction: data.issuesLastWeek > data.issuesLastMonth / 4 ? "declining" : "improving",
-        keyFactors: ["Issue volume", "Resolution capacity", "Resource availability"],
+        direction:
+          data.issuesLastWeek > data.issuesLastMonth / 4
+            ? "declining"
+            : "improving",
+        keyFactors: [
+          "Issue volume",
+          "Resolution capacity",
+          "Resource availability",
+        ],
       },
       performanceScore: score,
       priorityActions: recommendations.slice(0, 3),
@@ -533,7 +581,7 @@ Format as JSON with keys: staffAllocation (array), budgetAllocation (array), equ
   }
 
   private getFallbackComparison(
-    wards: Array<WardAnalyticsData & { metrics: PerformanceMetrics }>
+    wards: Array<WardAnalyticsData & { metrics: PerformanceMetrics }>,
   ): {
     summary: string;
     rankings: Array<{ wardName: string; rank: number; score: number }>;
@@ -594,14 +642,15 @@ Format as JSON with keys: staffAllocation (array), budgetAllocation (array), equ
       issues: number;
       resolved: number;
       category: string;
-    }>
+    }>,
   ): {
     predictions: Array<{ period: string; expectedIssues: number }>;
     confidence: number;
     factors: string[];
   } {
     const avgIssues =
-      historicalData.reduce((sum, d) => sum + d.issues, 0) / historicalData.length;
+      historicalData.reduce((sum, d) => sum + d.issues, 0) /
+      historicalData.length;
 
     return {
       predictions: [
@@ -611,7 +660,11 @@ Format as JSON with keys: staffAllocation (array), budgetAllocation (array), equ
         { period: "Week 4", expectedIssues: Math.round(avgIssues * 1.1) },
       ],
       confidence: 65,
-      factors: ["Historical trends", "Seasonal patterns", "Current open issues"],
+      factors: [
+        "Historical trends",
+        "Seasonal patterns",
+        "Current open issues",
+      ],
     };
   }
 
@@ -621,7 +674,7 @@ Format as JSON with keys: staffAllocation (array), budgetAllocation (array), equ
       staff: number;
       budget: number;
       equipment: string[];
-    }
+    },
   ): {
     staffAllocation: Array<{ category: string; count: number }>;
     budgetAllocation: Array<{ category: string; amount: number }>;
@@ -631,7 +684,7 @@ Format as JSON with keys: staffAllocation (array), budgetAllocation (array), equ
     const categories = Object.keys(wardData.categoryBreakdown);
     const totalIssues = Object.values(wardData.categoryBreakdown).reduce(
       (sum, count) => sum + count,
-      0
+      0,
     );
 
     const staffAllocation = categories.map((cat) => ({
@@ -639,15 +692,17 @@ Format as JSON with keys: staffAllocation (array), budgetAllocation (array), equ
       count: Math.max(
         1,
         Math.round(
-          (wardData.categoryBreakdown[cat] / totalIssues) * availableResources.staff
-        )
+          (wardData.categoryBreakdown[cat] / totalIssues) *
+            availableResources.staff,
+        ),
       ),
     }));
 
     const budgetAllocation = categories.map((cat) => ({
       category: cat,
       amount: Math.round(
-        (wardData.categoryBreakdown[cat] / totalIssues) * availableResources.budget
+        (wardData.categoryBreakdown[cat] / totalIssues) *
+          availableResources.budget,
       ),
     }));
 

@@ -10,6 +10,7 @@ import { LoginRequest, AuthResponse } from "@/lib/types";
 import { checkRateLimit, RATE_LIMITS } from "@/lib/rate-limit";
 import { logAuth, getRequestMetadata } from "@/lib/audit-log";
 import { sendLoginEmail } from "@/lib/email";
+import { getSupabaseClientByRole } from "@/lib/supabase";
 
 export async function POST(request: NextRequest) {
   const { ipAddress, userAgent } = getRequestMetadata(request);
@@ -55,8 +56,11 @@ export async function POST(request: NextRequest) {
     }
 
     const body: LoginRequest = await request.json();
-    const { email, password } = body;
+    const { email, password, userType = "citizen" } = body;
     userEmail = email;
+
+    // Log which database is being used for authentication
+    console.log(`Login attempt for ${userType} database: ${email}`);
 
     // Validation
     if (!email || !password) {
@@ -98,8 +102,29 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Find user by email
-    const user = await userDb.findByEmail(email.toLowerCase());
+    // Find user by email in the appropriate database
+    // For Supabase, we check the specific database based on userType
+    const supabaseClient = getSupabaseClientByRole(userType, true);
+
+    let user;
+    if (supabaseClient) {
+      // Query the appropriate Supabase database
+      const { data, error } = await supabaseClient
+        .from("users")
+        .select("*")
+        .eq("email", email.toLowerCase())
+        .single();
+
+      if (error || !data) {
+        console.log(`User not found in ${userType} database:`, error?.message);
+        user = null;
+      } else {
+        user = data;
+      }
+    } else {
+      // Fallback to in-memory database
+      user = await userDb.findByEmail(email.toLowerCase());
+    }
     if (!user) {
       logAuth({
         userEmail: email,
@@ -107,13 +132,13 @@ export async function POST(request: NextRequest) {
         ipAddress,
         userAgent,
         success: false,
-        errorMessage: "User not found",
+        errorMessage: `User not found in ${userType} database`,
       });
 
       return NextResponse.json(
         {
           success: false,
-          error: "Invalid email or password",
+          error: `Invalid email or password. Please ensure you're using the correct login button (${userType}).`,
         } as AuthResponse,
         { status: 401 },
       );
@@ -129,7 +154,7 @@ export async function POST(request: NextRequest) {
         ipAddress,
         userAgent,
         success: false,
-        errorMessage: "Invalid password",
+        errorMessage: `Invalid password for ${userType} account`,
       });
 
       return NextResponse.json(
@@ -141,8 +166,8 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Generate token
-    const token = generateToken(user.id, user.email, user.role);
+    // Generate token with userType information
+    const token = generateToken(user.id, user.email, user.role || userType);
 
     // Log successful login
     logAuth({
@@ -153,6 +178,8 @@ export async function POST(request: NextRequest) {
       userAgent,
       success: true,
     });
+
+    console.log(`Successful login to ${userType} database: ${user.email}`);
 
     // Send login notification email (async, don't wait for it)
     sendLoginEmail(user.name, user.email, ipAddress, userAgent).catch(

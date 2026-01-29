@@ -128,6 +128,7 @@ export interface SignupRequest {
 export interface LoginRequest {
   email: string;
   password: string;
+  userType?: "citizen" | "admin"; // Which database to authenticate against
 }
 
 export interface CreateIssueRequest {

@@ -32,7 +32,7 @@ export function SignupForm({
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
-  const [role, setRole] = useState<"citizen" | "admin">("citizen");
+  const [role, setRole] = useState<"citizen" | "admin">("citizen"); // Default to citizen database
   const [error, setError] = useState("");
   const [isLoading, setIsLoading] = useState(false);
   const { signup } = useAuth();
@@ -56,9 +56,11 @@ export function SignupForm({
     setIsLoading(true);
 
     try {
+      // Signup with role - citizen by default (goes to citizen database)
       const result = await signup(name, email, password, confirmPassword, role);
 
       if (result.success) {
+        // Redirect based on account type
         router.push(role === "admin" ? "/admin" : "/dashboard");
       } else {
         setError(result.error || "Signup failed. Please try again.");
@@ -83,6 +85,9 @@ export function SignupForm({
           </h1>
           <p className="text-muted-foreground text-sm text-balance">
             Create an account to start reporting and tracking civic issues
+          </p>
+          <p className="text-xs text-muted-foreground mt-1">
+            Note: Citizens and Admins use separate databases
           </p>
         </div>
 
@@ -137,8 +142,8 @@ export function SignupForm({
           </Select>
           <FieldDescription>
             {role === "admin"
-              ? "Administrators can manage issues and assign time estimates"
-              : "Citizens can report and track civic issues"}
+              ? "Admin accounts are stored in a separate admin database and have management privileges"
+              : "Citizen accounts are stored in the citizen database (default) and can report issues"}
           </FieldDescription>
         </Field>
         <Field>

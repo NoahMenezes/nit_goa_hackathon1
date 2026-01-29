@@ -347,6 +347,7 @@ export const authAPI = {
   async login(data: {
     email: string;
     password: string;
+    userType?: "citizen" | "admin";
   }): Promise<AuthResponse> {
     try {
       const response = (await apiRequest<AuthUser>("/auth/login", {

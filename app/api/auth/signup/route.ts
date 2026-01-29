@@ -8,11 +8,15 @@ import {
 } from "@/lib/auth";
 import { SignupRequest, AuthResponse } from "@/lib/types";
 import { sendWelcomeEmail } from "@/lib/email";
+import { getSupabaseClientByRole } from "@/lib/supabase";
 
 export async function POST(request: NextRequest) {
   try {
     const body: SignupRequest = await request.json();
     const { name, email, password, confirmPassword, role = "citizen" } = body;
+
+    // Log which database is being used for signup
+    console.log(`Signup attempt for ${role} database: ${email}`);
 
     // Validation
     if (!name || !email || !password || !confirmPassword) {
@@ -69,13 +73,28 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Check if user already exists
-    const existingUser = await userDb.findByEmail(email.toLowerCase());
+    // Check if user already exists in the appropriate database
+    const supabaseClient = getSupabaseClientByRole(role, true);
+
+    let existingUser;
+    if (supabaseClient) {
+      // Check in the appropriate Supabase database
+      const { data } = await supabaseClient
+        .from("users")
+        .select("id")
+        .eq("email", email.toLowerCase())
+        .single();
+      existingUser = data;
+    } else {
+      // Fallback to in-memory database
+      existingUser = await userDb.findByEmail(email.toLowerCase());
+    }
+
     if (existingUser) {
       return NextResponse.json(
         {
           success: false,
-          error: "User with this email already exists",
+          error: `User with this email already exists in ${role} database`,
         } as AuthResponse,
         { status: 409 },
       );
@@ -84,22 +103,53 @@ export async function POST(request: NextRequest) {
     // Hash password
     const hashedPassword = await hashPassword(password);
 
-    // Create new user
-    const newUser = await userDb.create({
-      name: name.trim(),
-      email: email.toLowerCase(),
-      password: hashedPassword,
-      role: role,
-    });
+    // Create new user in the appropriate database
+    let newUser;
+    if (supabaseClient) {
+      // Create user in the appropriate Supabase database
+      const { data, error } = await supabaseClient
+        .from("users")
+        .insert({
+          name: name.trim(),
+          email: email.toLowerCase(),
+          password: hashedPassword,
+          role: role,
+        })
+        .select()
+        .single();
 
-    if (!newUser) {
-      return NextResponse.json(
-        {
-          success: false,
-          error: "Failed to create user. Please try again.",
-        } as AuthResponse,
-        { status: 500 },
+      if (error || !data) {
+        console.error(`Failed to create user in ${role} database:`, error);
+        return NextResponse.json(
+          {
+            success: false,
+            error: `Failed to create user in ${role} database. Please try again.`,
+          } as AuthResponse,
+          { status: 500 },
+        );
+      }
+      newUser = data;
+      console.log(
+        `User created successfully in ${role} database: ${newUser.email}`,
       );
+    } else {
+      // Fallback to in-memory database
+      newUser = await userDb.create({
+        name: name.trim(),
+        email: email.toLowerCase(),
+        password: hashedPassword,
+        role: role,
+      });
+
+      if (!newUser) {
+        return NextResponse.json(
+          {
+            success: false,
+            error: "Failed to create user. Please try again.",
+          } as AuthResponse,
+          { status: 500 },
+        );
+      }
     }
 
     // Generate token
@@ -115,7 +165,7 @@ export async function POST(request: NextRequest) {
     return NextResponse.json(
       {
         success: true,
-        message: "Account created successfully",
+        message: `${role === "admin" ? "Admin" : "Citizen"} account created successfully in ${role} database`,
         user: sanitizeUser(newUser),
         token,
       } as AuthResponse,

@@ -20,24 +20,26 @@ import { AlertCircle } from "lucide-react";
 export function LoginForm({
   className,
   ...props
-}: React.ComponentProps<"form">) {
+}: React.ComponentProps<"div">) {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
   const [isLoading, setIsLoading] = useState(false);
+  const [loginType, setLoginType] = useState<"citizen" | "admin" | null>(null);
   const { login } = useAuth();
   const router = useRouter();
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
+  const handleSubmit = async (type: "citizen" | "admin") => {
     setError("");
     setIsLoading(true);
+    setLoginType(type);
 
     try {
-      const result = await login(email, password);
+      const result = await login(email, password, type);
 
       if (result.success) {
-        router.push("/dashboard");
+        // Redirect based on login type
+        router.push(type === "admin" ? "/admin" : "/dashboard");
       } else {
         setError(result.error || "Login failed. Please try again.");
       }
@@ -45,15 +47,12 @@ export function LoginForm({
       setError("An unexpected error occurred. Please try again.");
     } finally {
       setIsLoading(false);
+      setLoginType(null);
     }
   };
 
   return (
-    <form
-      className={cn("flex flex-col gap-6", className)}
-      onSubmit={handleSubmit}
-      {...props}
-    >
+    <div className={cn("flex flex-col gap-6", className)} {...props}>
       <FieldGroup>
         <div className="flex flex-col items-center gap-1 text-center">
           <h1 className="text-2xl font-bold">Welcome Back to OurStreet</h1>
@@ -101,9 +100,28 @@ export function LoginForm({
           />
         </Field>
         <Field>
-          <Button type="submit" className="w-full" disabled={isLoading}>
-            {isLoading ? "Logging in..." : "Login"}
-          </Button>
+          <div className="flex flex-col gap-3">
+            <Button
+              type="button"
+              onClick={() => handleSubmit("citizen")}
+              className="w-full bg-blue-600 hover:bg-blue-700 text-white"
+              disabled={isLoading || !email || !password}
+            >
+              {isLoading && loginType === "citizen"
+                ? "Logging in..."
+                : "Login as Citizen"}
+            </Button>
+            <Button
+              type="button"
+              onClick={() => handleSubmit("admin")}
+              className="w-full bg-purple-600 hover:bg-purple-700 text-white"
+              disabled={isLoading || !email || !password}
+            >
+              {isLoading && loginType === "admin"
+                ? "Logging in..."
+                : "Login as Admin"}
+            </Button>
+          </div>
         </Field>
         <FieldSeparator>Or continue with</FieldSeparator>
         <Field>
@@ -131,6 +149,6 @@ export function LoginForm({
           </FieldDescription>
         </Field>
       </FieldGroup>
-    </form>
+    </div>
   );
 }

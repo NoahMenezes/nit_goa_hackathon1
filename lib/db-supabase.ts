@@ -1,7 +1,13 @@
 // Supabase database operations for OurStreet
 // This replaces the in-memory database with persistent Supabase storage
 
-import { supabase, supabaseAdmin } from "./supabase";
+import {
+  citizenSupabase,
+  citizenSupabaseAdmin,
+  adminSupabase,
+  adminSupabaseAdmin,
+  getSupabaseClientByRole,
+} from "./supabase";
 import {
   User,
   Issue,
@@ -58,26 +64,27 @@ type VoteRow = {
   created_at: string;
 };
 
-// Safety check helper
-// Get Supabase client
-function getSupabase() {
-  if (!supabase) {
+// Safety check helper - Get Supabase client based on role
+function getSupabase(role: string = "citizen") {
+  const client = getSupabaseClientByRole(role, false);
+  if (!client) {
     throw new Error(
-      "Supabase is not configured. Please set NEXT_PUBLIC_SUPABASE_URL and NEXT_PUBLIC_SUPABASE_ANON_KEY.",
+      `Supabase ${role} database is not configured. Please set environment variables.`,
     );
   }
-  return supabase;
+  return client;
 }
 
 // Get Supabase admin client (for server-side operations that need to bypass RLS)
-function getSupabaseAdmin() {
-  if (!supabaseAdmin) {
+function getSupabaseAdmin(role: string = "citizen") {
+  const client = getSupabaseClientByRole(role, true);
+  if (!client) {
     console.warn(
-      "Supabase admin client not configured, falling back to regular client",
+      `Supabase ${role} admin client not configured, falling back to regular client`,
     );
-    return getSupabase();
+    return getSupabase(role);
   }
-  return supabaseAdmin;
+  return client;
 }
 
 // Helper function to generate unique IDs (Supabase uses UUIDs)
@@ -91,7 +98,9 @@ export const userDb = {
     user: Omit<User, "id" | "createdAt" | "updatedAt">,
   ): Promise<User | null> {
     // Use admin client to bypass RLS policies for user creation
-    const { data, error } = await getSupabaseAdmin()
+    // Use the appropriate database based on user role
+    const role = user.role || "citizen";
+    const { data, error } = await getSupabaseAdmin(role)
       .from("users")
       .insert({
         name: user.name,
@@ -120,15 +129,15 @@ export const userDb = {
     };
   },
 
-  async findById(id: string): Promise<User | undefined> {
-    const { data, error } = await getSupabase()
+  async findById(id: string, role: string = "citizen"): Promise<User | null> {
+    const { data, error } = await getSupabase(role)
       .from("users")
       .select("*")
       .eq("id", id)
       .single();
 
     if (error || !data) {
-      return undefined;
+      return null;
     }
 
     return {
@@ -143,15 +152,18 @@ export const userDb = {
     };
   },
 
-  async findByEmail(email: string): Promise<User | undefined> {
-    const { data, error } = await getSupabase()
+  async findByEmail(
+    email: string,
+    role: string = "citizen",
+  ): Promise<User | null> {
+    const { data, error } = await getSupabase(role)
       .from("users")
       .select("*")
-      .eq("email", email)
+      .eq("email", email.toLowerCase())
       .single();
 
     if (error || !data) {
-      return undefined;
+      return null;
     }
 
     return {
@@ -198,9 +210,12 @@ export const userDb = {
     };
   },
 
-  async delete(id: string): Promise<boolean> {
-    const { error } = await getSupabase().from("users").delete().eq("id", id);
-    return !error;
+  async delete(id: string, role: string = "citizen"): Promise<void> {
+    const { error } = await getSupabaseAdmin(role)
+      .from("users")
+      .delete()
+      .eq("id", id);
+    if (error) throw error;
   },
 
   async getAll(): Promise<User[]> {
@@ -226,9 +241,11 @@ export const userDb = {
 // Issue operations
 export const issueDb = {
   async create(
-    issue: Omit<Issue, "id" | "createdAt" | "updatedAt" | "votes" | "comments">,
+    issue: Omit<Issue, "id" | "votes" | "comments" | "createdAt" | "updatedAt">,
+    role: string = "citizen",
   ): Promise<Issue | null> {
-    const { data, error } = await getSupabase()
+    // Use admin client to create issues
+    const { data, error } = await getSupabaseAdmin(role)
       .from("issues")
       .insert({
         title: issue.title,
@@ -272,15 +289,15 @@ export const issueDb = {
     };
   },
 
-  async findById(id: string): Promise<Issue | undefined> {
-    const { data, error } = await getSupabase()
+  async findById(id: string, role: string = "citizen"): Promise<Issue | null> {
+    const { data, error } = await getSupabase(role)
       .from("issues")
       .select("*")
       .eq("id", id)
       .single();
 
     if (error || !data) {
-      return undefined;
+      return null;
     }
 
     // Get comments for this issue
@@ -308,7 +325,8 @@ export const issueDb = {
   async update(
     id: string,
     updates: Partial<Issue>,
-  ): Promise<Issue | undefined> {
+    role: string = "citizen",
+  ): Promise<Issue | null> {
     const updateData: Record<string, string | number | null | undefined> = {};
     if (updates.title !== undefined) updateData.title = updates.title;
     if (updates.description !== undefined)
@@ -323,7 +341,7 @@ export const issueDb = {
     if (updates.status !== undefined) updateData.status = updates.status;
     if (updates.priority !== undefined) updateData.priority = updates.priority;
 
-    const { data, error } = await getSupabase()
+    const { data, error } = await getSupabaseAdmin(role)
       .from("issues")
       .update(updateData)
       .eq("id", id)
@@ -332,7 +350,7 @@ export const issueDb = {
 
     if (error || !data) {
       console.error("Error updating issue:", error);
-      return undefined;
+      return null;
     }
 
     // Get comments for this issue
@@ -357,13 +375,16 @@ export const issueDb = {
     };
   },
 
-  async delete(id: string): Promise<boolean> {
-    const { error } = await getSupabase().from("issues").delete().eq("id", id);
-    return !error;
+  async delete(id: string, role: string = "citizen"): Promise<void> {
+    const { error } = await getSupabaseAdmin(role)
+      .from("issues")
+      .delete()
+      .eq("id", id);
+    if (error) throw error;
   },
 
-  async getAll(): Promise<Issue[]> {
-    const { data, error } = await getSupabase()
+  async getAll(role: string = "citizen"): Promise<Issue[]> {
+    const { data, error } = await getSupabase(role)
       .from("issues")
       .select("*")
       .order("created_at", { ascending: false });
@@ -399,8 +420,11 @@ export const issueDb = {
     return issues;
   },
 
-  async findByUserId(userId: string): Promise<Issue[]> {
-    const { data, error } = await getSupabase()
+  async findByUserId(
+    userId: string,
+    role: string = "citizen",
+  ): Promise<Issue[]> {
+    const { data, error } = await getSupabase(role)
       .from("issues")
       .select("*")
       .eq("user_id", userId)
@@ -436,8 +460,11 @@ export const issueDb = {
     return issues;
   },
 
-  async findByStatus(status: string): Promise<Issue[]> {
-    const { data, error } = await getSupabase()
+  async findByStatus(
+    status: IssueStatus,
+    role: string = "citizen",
+  ): Promise<Issue[]> {
+    const { data, error } = await getSupabase(role)
       .from("issues")
       .select("*")
       .eq("status", status)
@@ -473,8 +500,11 @@ export const issueDb = {
     return issues;
   },
 
-  async findByCategory(category: string): Promise<Issue[]> {
-    const { data, error } = await getSupabase()
+  async findByCategory(
+    category: IssueCategory,
+    role: string = "citizen",
+  ): Promise<Issue[]> {
+    const { data, error } = await getSupabase(role)
       .from("issues")
       .select("*")
       .eq("category", category)
@@ -510,12 +540,14 @@ export const issueDb = {
     return issues;
   },
 
-  async incrementVotes(id: string): Promise<Issue | undefined> {
-    // First get current votes
-    const current = await this.findById(id);
-    if (!current) return undefined;
-
-    const { data, error } = await getSupabase()
+  async incrementVotes(
+    id: string,
+    role: string = "citizen",
+  ): Promise<Issue | null> {
+    // First get current vote count
+    const current = await this.findById(id, role);
+    if (!current) return null;
+    const { data, error } = await getSupabaseAdmin(role)
       .from("issues")
       .update({ votes: (current.votes || 0) + 1 })
       .eq("id", id)
@@ -523,7 +555,7 @@ export const issueDb = {
       .single();
 
     if (error || !data) {
-      return undefined;
+      return null;
     }
 
     const comments = await commentDb.findByIssueId(data.id);
@@ -547,12 +579,14 @@ export const issueDb = {
     };
   },
 
-  async decrementVotes(id: string): Promise<Issue | undefined> {
-    // First get current votes
-    const current = await this.findById(id);
-    if (!current) return undefined;
-
-    const { data, error } = await getSupabase()
+  async decrementVotes(
+    id: string,
+    role: string = "citizen",
+  ): Promise<Issue | null> {
+    // First get current vote count
+    const current = await this.findById(id, role);
+    if (!current) return null;
+    const { data, error } = await getSupabaseAdmin(role)
       .from("issues")
       .update({ votes: Math.max((current.votes || 0) - 1, 0) })
       .eq("id", id)
@@ -560,7 +594,7 @@ export const issueDb = {
       .single();
 
     if (error || !data) {
-      return undefined;
+      return null;
     }
 
     const comments = await commentDb.findByIssueId(data.id);
@@ -589,8 +623,10 @@ export const issueDb = {
 export const commentDb = {
   async create(
     comment: Omit<Comment, "id" | "createdAt">,
+    role: string = "citizen",
   ): Promise<Comment | null> {
-    const { data, error } = await getSupabase()
+    // Use admin client to create comments
+    const { data, error } = await getSupabaseAdmin(role)
       .from("comments")
       .insert({
         issue_id: comment.issueId,
@@ -616,15 +652,18 @@ export const commentDb = {
     };
   },
 
-  async findById(id: string): Promise<Comment | undefined> {
-    const { data, error } = await getSupabase()
+  async findById(
+    id: string,
+    role: string = "citizen",
+  ): Promise<Comment | null> {
+    const { data, error } = await getSupabase(role)
       .from("comments")
       .select("*")
       .eq("id", id)
       .single();
 
     if (error || !data) {
-      return undefined;
+      return null;
     }
 
     return {
@@ -637,8 +676,11 @@ export const commentDb = {
     };
   },
 
-  async findByIssueId(issueId: string): Promise<Comment[]> {
-    const { data, error } = await getSupabase()
+  async findByIssueId(
+    issueId: string,
+    role: string = "citizen",
+  ): Promise<Comment[]> {
+    const { data, error } = await getSupabase(role)
       .from("comments")
       .select("*")
       .eq("issue_id", issueId)
@@ -658,19 +700,22 @@ export const commentDb = {
     }));
   },
 
-  async delete(id: string): Promise<boolean> {
-    const { error } = await getSupabase()
+  async delete(id: string, role: string = "citizen"): Promise<void> {
+    const { error } = await getSupabaseAdmin(role)
       .from("comments")
       .delete()
       .eq("id", id);
-    return !error;
+    if (error) throw error;
   },
 };
 
 // Vote operations
 export const voteDb = {
-  async create(vote: Omit<Vote, "id" | "createdAt">): Promise<Vote | null> {
-    const { data, error } = await getSupabase()
+  async create(
+    vote: Omit<Vote, "id" | "createdAt">,
+    role: string = "citizen",
+  ): Promise<Vote | null> {
+    const { data, error } = await getSupabaseAdmin(role)
       .from("votes")
       .insert({
         issue_id: vote.issueId,
@@ -695,8 +740,9 @@ export const voteDb = {
   async findByUserAndIssue(
     userId: string,
     issueId: string,
-  ): Promise<Vote | undefined> {
-    const { data, error } = await getSupabase()
+    role: string = "citizen",
+  ): Promise<Vote | null> {
+    const { data, error } = await getSupabase(role)
       .from("votes")
       .select("*")
       .eq("user_id", userId)
@@ -704,7 +750,7 @@ export const voteDb = {
       .single();
 
     if (error || !data) {
-      return undefined;
+      return null;
     }
 
     return {
@@ -715,13 +761,19 @@ export const voteDb = {
     };
   },
 
-  async delete(id: string): Promise<boolean> {
-    const { error } = await getSupabase().from("votes").delete().eq("id", id);
-    return !error;
+  async delete(id: string, role: string = "citizen"): Promise<void> {
+    const { error } = await getSupabaseAdmin(role)
+      .from("votes")
+      .delete()
+      .eq("id", id);
+    if (error) throw error;
   },
 
-  async findByIssueId(issueId: string): Promise<Vote[]> {
-    const { data, error } = await getSupabase()
+  async findByIssueId(
+    issueId: string,
+    role: string = "citizen",
+  ): Promise<Vote[]> {
+    const { data, error } = await getSupabase(role)
       .from("votes")
       .select("*")
       .eq("issue_id", issueId);

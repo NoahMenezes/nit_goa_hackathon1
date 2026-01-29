@@ -1,0 +1,115 @@
+# ═══════════════════════════════════════════════════════════════════════
+# 🔴 CRITICAL - Required for Production
+# ═══════════════════════════════════════════════════════════════════════
+
+# JWT Secret - MUST be at least 32 characters
+# Generate with: openssl rand -base64 32
+# CHANGE THIS IN PRODUCTION!
+JWT_SECRET=citypulse-secret-key-change-in-production-use-openssl-rand-base64-32
+
+# Application URL - Change to your production domain when deploying
+NEXT_PUBLIC_APP_URL=http://localhost:3000
+
+# ═══════════════════════════════════════════════════════════════════════
+# 🟡 RECOMMENDED - Database & Data Persistence (Supabase - Dual Database)
+# ═══════════════════════════════════════════════════════════════════════
+# We use TWO separate Supabase databases:
+# 1. CITIZEN Database - For regular users/citizens (default for signups)
+# 2. ADMIN Database - For administrators only
+
+# ─────────────────────────────────────────────────────────────────────
+# CITIZEN Database (Primary/Default)
+# ─────────────────────────────────────────────────────────────────────
+# Get from: https://supabase.com/dashboard/project/_/settings/api
+# This database is used for:
+# - All citizen signups (default)
+# - Citizen logins
+# - Issue reporting by citizens
+
+NEXT_PUBLIC_SUPABASE_CITIZEN_URL=your_citizen_supabase_project_url_here
+NEXT_PUBLIC_SUPABASE_CITIZEN_ANON_KEY=your_citizen_supabase_anon_key_here
+SUPABASE_CITIZEN_SERVICE_ROLE_KEY=your_citizen_supabase_service_role_key_here
+
+# ─────────────────────────────────────────────────────────────────────
+# ADMIN Database (Administrative)
+# ─────────────────────────────────────────────────────────────────────
+# Get from: https://supabase.com/dashboard/project/_/settings/api
+# This database is used for:
+# - Admin signups
+# - Admin logins
+# - Administrative operations
+
+NEXT_PUBLIC_SUPABASE_ADMIN_URL=your_admin_supabase_project_url_here
+NEXT_PUBLIC_SUPABASE_ADMIN_ANON_KEY=your_admin_supabase_anon_key_here
+SUPABASE_ADMIN_SERVICE_ROLE_KEY=your_admin_supabase_service_role_key_here
+
+# ═══════════════════════════════════════════════════════════════════════
+# 🟢 OPTIONAL - Enhanced Features
+# ═══════════════════════════════════════════════════════════════════════
+
+# ─────────────────────────────────────────────────────────────────────
+# MapTiler - Interactive Maps
+# ─────────────────────────────────────────────────────────────────────
+# Get from: https://cloud.maptiler.com/
+# Free tier: 100,000 map loads/month
+
+NEXT_PUBLIC_MAPTILER_API_KEY=your_maptiler_api_key_here
+
+# ─────────────────────────────────────────────────────────────────────
+# ElevenLabs - Voice Agent
+# ─────────────────────────────────────────────────────────────────────
+# Get from: https://elevenlabs.io/app/conversational-ai
+# Pre-configured agent (you can use this or replace with your own)
+
+ELEVENLABS_AI_AGENT=agent_8701kfjzrrhcf408keqd06k3pryw
+NEXT_PUBLIC_AGENT_ID=agent_8701kfjzrrhcf408keqd06k3pryw
+NEXT_PUBLIC_ELEVENLABS_AGENT_ID=agent_8701kfjzrrhcf408keqd06k3pryw
+
+# ─────────────────────────────────────────────────────────────────────
+# Google Gemini - AI Categorization
+# ─────────────────────────────────────────────────────────────────────
+# Get from: https://aistudio.google.com/app/apikey
+# Free tier: 1,500 requests/day
+# Fallback: Uses rule-based categorization if not set
+
+GEMINI_API_KEY=your_gemini_api_key_here
+GEMINI_MODEL=gemini-1.5-flash
+
+# ─────────────────────────────────────────────────────────────────────
+# Cloudinary - Image Uploads
+# ─────────────────────────────────────────────────────────────────────
+# Get from: https://cloudinary.com/console
+# Steps: Dashboard → Settings → Upload → Create unsigned preset
+
+NEXT_PUBLIC_CLOUDINARY_CLOUD_NAME=your_cloudinary_cloud_name_here
+NEXT_PUBLIC_CLOUDINARY_UPLOAD_PRESET=your_cloudinary_upload_preset_here
+
+# ─────────────────────────────────────────────────────────────────────
+# Resend - Email Notifications
+# ─────────────────────────────────────────────────────────────────────
+# Get from: https://resend.com/api-keys
+# Free tier: 100 emails/day, 3,000/month
+# Pre-configured key (you can use this or replace with your own)
+
+RESEND_API_KEY=re_AzooEQsa_BdtfiZf1ZFTrBAZhjtZJU5rQ
+
+# ─────────────────────────────────────────────────────────────────────
+# Twilio - SMS Notifications (Future Implementation)
+# ─────────────────────────────────────────────────────────────────────
+# Get from: https://console.twilio.com/
+# Not yet implemented in the app
+
+# TWILIO_ACCOUNT_SID=your_twilio_account_sid_here
+# TWILIO_AUTH_TOKEN=your_twilio_auth_token_here
+# TWILIO_PHONE_NUMBER=+1234567890
+
+# ═══════════════════════════════════════════════════════════════════════
+# 🔒 SECURITY & CONFIGURATION
+# ═══════════════════════════════════════════════════════════════════════
+
+# Require authentication for issue creation
+# Set to 'true' in production to prevent spam
+REQUIRE_AUTH_FOR_ISSUES=false
+
+# Node Environment
+NODE_ENV=development
