@@ -203,6 +203,11 @@ async function moderateIssue(
 ): Promise<Partial<IssuePostingState>> {
   console.log(`📋 Moderating issue: ${state.issue.title}`);
 
+  if (state.shouldPost) {
+    console.log("⏭️ Auto-approved, skipping moderation");
+    return { moderationStatus: "approved" };
+  }
+
   try {
     const generator = new IssueContentGenerator();
     const moderation = await generator.moderateContent(state.issue);

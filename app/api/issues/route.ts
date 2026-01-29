@@ -615,11 +615,10 @@ export async function POST(request: NextRequest) {
     // Attempt automated social media posting
     try {
       const autoPostEnabled = process.env.ENABLE_SOCIAL_MEDIA_AUTO_POST === "true";
-      const postPriorities = (process.env.SOCIAL_MEDIA_POST_PRIORITIES || "high,critical").split(",");
       const autoApprove = process.env.SOCIAL_MEDIA_AUTO_APPROVE === "true";
 
-      if (autoPostEnabled && postPriorities.includes(newIssue.priority)) {
-        console.log(`🚀 Triggering auto-post for issue ${newIssue.id} (${newIssue.priority} priority)`);
+      if (autoPostEnabled) {
+        console.log(`🚀 Triggering auto-post for issue ${newIssue.id}`);
 
         // We run this asynchronously to not block the main response
         postIssueToSocialMedia(newIssue, {
