@@ -40,6 +40,7 @@ import Link from "next/link";
 import toast from "react-hot-toast";
 import { WARDS, IssueCategory } from "@/lib/types";
 import { InteractiveMap } from "@/components/interactive-map";
+import GradientBlinds from "@/components/ui/gradient-blinds";
 
 interface FilePreview {
   file: File;
@@ -59,12 +60,12 @@ function ReportIssueContent() {
   const { user, isAuthenticated, isLoading } = useAuth();
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isUploading, setIsUploading] = useState(false);
-  const [isAICategorizing, setIsAICategorizing] = useState(false);
   const [useAI, setUseAI] = useState(false); // Toggle for AI categorization
   const [isCameraOpen, setIsCameraOpen] = useState(false);
   const [stream, setStream] = useState<MediaStream | null>(null);
   const videoRef = useRef<HTMLVideoElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
+  const gradientBlindsContainerRef = useRef<HTMLDivElement>(null);
   const [aiSuggestion, setAiSuggestion] = useState<{
     category: IssueCategory;
     priority: string;
@@ -338,7 +339,6 @@ function ReportIssueContent() {
       return;
     }
 
-    setIsAICategorizing(true);
     try {
       console.log("🔍 Calling AI categorization API with:", {
         title: formData.title,
@@ -391,7 +391,6 @@ function ReportIssueContent() {
           : "AI categorization unavailable. Please select manually.",
       );
     } finally {
-      setIsAICategorizing(false);
       setIsUploading(false);
     }
   };
@@ -537,8 +536,49 @@ function ReportIssueContent() {
   }
 
   return (
-    <div className="min-h-screen bg-linear-to-b from-gray-50 to-white dark:from-black dark:to-gray-950">
-      <div className="container mx-auto px-4 py-8 max-w-4xl">
+    <div
+      className="min-h-screen relative overflow-hidden"
+      onMouseMove={(e) => {
+        // Forward mouse events to GradientBlinds even when over content
+        if (gradientBlindsContainerRef.current) {
+          const container = gradientBlindsContainerRef.current;
+          const canvas = container.querySelector("canvas");
+          if (canvas) {
+            const event = new PointerEvent("pointermove", {
+              clientX: e.clientX,
+              clientY: e.clientY,
+              bubbles: true,
+            });
+            canvas.dispatchEvent(event);
+          }
+        }
+      }}
+    >
+      {/* Gradient Blinds Background */}
+      <div
+        ref={gradientBlindsContainerRef}
+        className="fixed inset-0 w-full h-full z-0 pointer-events-none"
+      >
+        <GradientBlinds
+          gradientColors={["#FF9FFC", "#5227FF", "#7B7481"]}
+          angle={0}
+          noise={0.4}
+          blindCount={12}
+          blindMinWidth={50}
+          spotlightRadius={0.8}
+          spotlightSoftness={0.8}
+          spotlightOpacity={1.5}
+          mouseDampening={0.1}
+          distortAmount={0}
+          shineDirection="left"
+          mixBlendMode="lighten"
+        />
+      </div>
+
+      {/* Semi-transparent overlay for readability */}
+      <div className="fixed inset-0 w-full h-full z-1 bg-white/60 dark:bg-black/60 backdrop-blur-sm pointer-events-none" />
+
+      <div className="container mx-auto px-4 py-8 max-w-4xl relative z-10">
         {/* Header */}
         <div className="mb-8">
           <Link href="/map">

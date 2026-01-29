@@ -202,11 +202,10 @@ export function DashboardProvider({ children }: { children: React.ReactNode }) {
 
         // Set recent activity from API
         if (apiData.recentActivity && Array.isArray(apiData.recentActivity)) {
+          const baseTimestamp = Date.now();
           const mappedActivity: ActivityItem[] = apiData.recentActivity.map(
             (item: ApiActivityItem, index: number) => ({
-              id:
-                parseInt(item.id) ||
-                Date.now() + index * 100000 + Math.floor(Math.random() * 10000),
+              id: parseInt(item.id) || baseTimestamp * 1000 + index,
               type: item.type || "info",
               message: item.message || "",
               timestamp: item.timestamp || new Date().toISOString(),
@@ -387,11 +386,10 @@ export function DashboardProvider({ children }: { children: React.ReactNode }) {
 
         // Update recent activity from API
         if (apiData.recentActivity && Array.isArray(apiData.recentActivity)) {
+          const baseTimestamp = Date.now();
           const mappedActivity: ActivityItem[] = apiData.recentActivity.map(
             (item: ApiActivityItem, index: number) => ({
-              id:
-                parseInt(item.id) ||
-                Date.now() + index * 100000 + Math.floor(Math.random() * 10000),
+              id: parseInt(item.id) || baseTimestamp * 1000 + index,
               type: item.type || "info",
               message: item.message || "",
               timestamp: item.timestamp || new Date().toISOString(),

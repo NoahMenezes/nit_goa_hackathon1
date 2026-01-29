@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
+import Image from "next/image";
 import { MapPin, AlertCircle, CheckCircle, Clock } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { InteractiveMap } from "@/components/interactive-map";
@@ -38,9 +39,6 @@ const statusIcons = {
   resolved: CheckCircle,
 };
 
-// Default location (Goa, India)
-const DEFAULT_LOCATION = { lat: 15.2993, lng: 74.124 };
-
 export default function MapPage() {
   return (
     <ProtectedRoute>
@@ -55,13 +53,6 @@ function MapPageContent() {
   const [isLoading, setIsLoading] = useState(true);
   const [selectedIssue, setSelectedIssue] = useState<string | null>(null);
   const [focusOnMarker, setFocusOnMarker] = useState<string | null>(null);
-
-  // Form state
-  const [formTitle, setFormTitle] = useState("");
-  const [formDescription, setFormDescription] = useState("");
-  const [formCategory, setFormCategory] = useState("");
-  const [formPhoto, setFormPhoto] = useState<File | null>(null);
-  const [isSubmitting, setIsSubmitting] = useState(false);
 
   // Fetch issues from API
   useEffect(() => {
@@ -244,7 +235,7 @@ function MapPageContent() {
                 <CardTitle className="text-sm font-medium group-hover:text-emerald-600 dark:group-hover:text-emerald-400 transition-colors duration-300">
                   Resolved
                 </CardTitle>
-                <CheckCircle className="size-4 text-gray-500 dark:text-gray-400 group-hover:text-emerald-600 dark:group-hover:text-emerald-400 transition-all duration-300 group-hover:scale-110 group-hover:rotate-[360deg]" />
+                <CheckCircle className="size-4 text-gray-500 dark:text-gray-400 group-hover:text-emerald-600 dark:group-hover:text-emerald-400 transition-all duration-300 group-hover:scale-110 group-hover:rotate-360" />
               </CardHeader>
               <CardContent>
                 <div className="text-2xl font-bold text-black dark:text-white group-hover:text-emerald-600 dark:group-hover:text-emerald-400 group-hover:text-4xl transition-all duration-300 ease-out">
@@ -271,7 +262,7 @@ function MapPageContent() {
             </div>
 
             {/* Original Issues Map */}
-            <Card>
+            <Card className="relative overflow-hidden">
               <CardHeader>
                 <CardTitle className="flex items-center gap-2">
                   <MapPin className="size-5" />
@@ -281,21 +272,33 @@ function MapPageContent() {
                   Real-time civic issues mapped across the city
                 </p>
               </CardHeader>
-              <CardContent>
-                <InteractiveMap
-                  center={[73.8278, 15.4909]}
-                  zoom={12}
-                  markers={issues.map((issue) => ({
-                    id: issue.id,
-                    position: [issue.location.lng, issue.location.lat],
-                    title: issue.title,
-                    status: issue.status,
-                  }))}
-                  onMarkerClick={handleMarkerClick}
-                  height="400px"
-                  showUserLocation={true}
-                  focusOnMarker={focusOnMarker}
-                />
+              <CardContent className="relative">
+                {/* Silk Background behind map */}
+                <div className="absolute inset-0 z-0 opacity-20 dark:opacity-10 rounded-lg overflow-hidden">
+                  <Silk
+                    speed={2}
+                    scale={1.5}
+                    color="#7B7481"
+                    noiseIntensity={1.2}
+                    rotation={0}
+                  />
+                </div>
+                <div className="relative z-10">
+                  <InteractiveMap
+                    center={[73.8278, 15.4909]}
+                    zoom={12}
+                    markers={issues.map((issue) => ({
+                      id: issue.id,
+                      position: [issue.location.lng, issue.location.lat],
+                      title: issue.title,
+                      status: issue.status,
+                    }))}
+                    onMarkerClick={handleMarkerClick}
+                    height="400px"
+                    showUserLocation={true}
+                    focusOnMarker={focusOnMarker}
+                  />
+                </div>
               </CardContent>
             </Card>
           </div>
@@ -364,9 +367,11 @@ function MapPageContent() {
                           </div>
                           {issue.photoUrl && (
                             <div className="ml-4">
-                              <img
+                              <Image
                                 src={issue.photoUrl}
                                 alt={issue.title}
+                                width={80}
+                                height={80}
                                 className="w-20 h-20 object-cover rounded"
                               />
                             </div>
