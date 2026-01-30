@@ -1,13 +1,7 @@
 // Supabase database operations for OurStreet
 // This replaces the in-memory database with persistent Supabase storage
 
-import {
-  citizenSupabase,
-  citizenSupabaseAdmin,
-  adminSupabase,
-  adminSupabaseAdmin,
-  getSupabaseClientByRole,
-} from "./supabase";
+import { getSupabaseClientByRole } from "./supabase";
 import {
   User,
   Issue,
@@ -17,6 +11,10 @@ import {
   IssueStatus,
   IssuePriority,
 } from "./types";
+
+// ============================================================================
+// TYPE DEFINITIONS
+// ============================================================================
 
 // Supabase database row types
 type UserRow = {
@@ -39,20 +37,92 @@ type IssueRow = {
   latitude: number;
   longitude: number;
   photo_url: string | null;
-  before_photo_urls: string[] | null;
-  after_photo_urls: string[] | null;
+  before_photo_urls?: string[] | null;
+  after_photo_urls?: string[] | null;
   status: string;
   priority: string;
   user_id: string;
   votes: number;
-  ward: string | null;
+  ward?: string | null;
   created_at: string;
   updated_at: string;
   resolved_at: string | null;
 };
 
-// Helper to map database row to Issue interface
-function mapRowToIssue(row: IssueRow, comments: Comment[] = []): Issue {
+type CommentRow = {
+  id: string;
+  issue_id: string;
+  user_id: string;
+  user_name: string;
+  content: string;
+  created_at: string;
+};
+
+type VoteRow = {
+  id: string;
+  issue_id: string;
+  user_id: string;
+  created_at: string;
+};
+
+// ============================================================================
+// HELPER FUNCTIONS
+// ============================================================================
+
+/**
+ * Get Supabase client based on role (for public operations)
+ */
+function getSupabase(role: string = "citizen") {
+  const client = getSupabaseClientByRole(role, false);
+  if (!client) {
+    throw new Error(
+      `Supabase ${role} database is not configured. Please set environment variables.`,
+    );
+  }
+  return client;
+}
+
+/**
+ * Get Supabase admin client (for server-side operations that need to bypass RLS)
+ */
+function getSupabaseAdmin(role: string = "citizen") {
+  const client = getSupabaseClientByRole(role, true);
+  if (!client) {
+    console.warn(
+      `Supabase ${role} admin client not configured, falling back to regular client`,
+    );
+    return getSupabase(role);
+  }
+  return client;
+}
+
+/**
+ * Generate unique IDs (Supabase uses UUIDs)
+ */
+export function generateId(): string {
+  return crypto.randomUUID();
+}
+
+/**
+ * Map UserRow from database to User application object
+ */
+function mapUserRowToUser(row: UserRow): User {
+  return {
+    id: row.id,
+    name: row.name,
+    email: row.email,
+    password: row.password,
+    role: row.role as "citizen" | "admin" | "authority",
+    avatar: row.avatar || undefined,
+    createdAt: row.created_at,
+    updatedAt: row.updated_at,
+  };
+}
+
+/**
+ * Map IssueRow from database to Issue application object
+ */
+function mapIssueRowToIssue(row: IssueRow, comments: Comment[] = []): Issue {
   return {
     id: row.id,
     title: row.title,
@@ -75,59 +145,56 @@ function mapRowToIssue(row: IssueRow, comments: Comment[] = []): Issue {
   };
 }
 
-type CommentRow = {
-  id: string;
-  issue_id: string;
-  user_id: string;
-  user_name: string;
-  content: string;
-  created_at: string;
-};
+/**
+ * Map CommentRow from database to Comment application object
+ */
+function mapCommentRowToComment(row: CommentRow): Comment {
+  return {
+    id: row.id,
+    issueId: row.issue_id,
+    userId: row.user_id,
+    userName: row.user_name,
+    content: row.content,
+    createdAt: row.created_at,
+  };
+}
 
-type VoteRow = {
-  id: string;
-  issue_id: string;
-  user_id: string;
-  created_at: string;
-};
+/**
+ * Map VoteRow from database to Vote application object
+ */
+function mapVoteRowToVote(row: VoteRow): Vote {
+  return {
+    id: row.id,
+    issueId: row.issue_id,
+    userId: row.user_id,
+    createdAt: row.created_at,
+  };
+}
 
-// Safety check helper - Get Supabase client based on role
-function getSupabase(role: string = "citizen") {
-  const client = getSupabaseClientByRole(role, false);
-  if (!client) {
-    throw new Error(
-      `Supabase ${role} database is not configured. Please set environment variables.`,
-    );
+/**
+ * Determine which role/database to use based on user role
+ * Admin and authority users go to admin DB, citizens go to citizen DB
+ */
+function getRoleDatabase(role?: string): string {
+  if (role === "admin" || role === "authority") {
+    return "admin";
   }
-  return client;
+  return "citizen";
 }
 
-// Get Supabase admin client (for server-side operations that need to bypass RLS)
-function getSupabaseAdmin(role: string = "citizen") {
-  const client = getSupabaseClientByRole(role, true);
-  if (!client) {
-    console.warn(
-      `Supabase ${role} admin client not configured, falling back to regular client`,
-    );
-    return getSupabase(role);
-  }
-  return client;
-}
+// ============================================================================
+// USER OPERATIONS
+// ============================================================================
 
-// Helper function to generate unique IDs (Supabase uses UUIDs)
-export function generateId(): string {
-  return crypto.randomUUID();
-}
-
-// User operations
 export const userDb = {
+  /**
+   * Create a new user
+   */
   async create(
     user: Omit<User, "id" | "createdAt" | "updatedAt">,
   ): Promise<User | null> {
-    // Use admin client to bypass RLS policies for user creation
-    // Use the appropriate database based on user role
-    const role = user.role || "citizen";
-    const { data, error } = await getSupabaseAdmin(role)
+    const dbRole = getRoleDatabase(user.role);
+    const { data, error } = await getSupabaseAdmin(dbRole)
       .from("users")
       .insert({
         name: user.name,
@@ -144,20 +211,15 @@ export const userDb = {
       return null;
     }
 
-    return {
-      id: data.id,
-      name: data.name,
-      email: data.email,
-      password: data.password,
-      role: data.role,
-      avatar: data.avatar || undefined,
-      createdAt: data.created_at,
-      updatedAt: data.updated_at,
-    };
+    return mapUserRowToUser(data);
   },
 
+  /**
+   * Find user by ID
+   */
   async findById(id: string, role: string = "citizen"): Promise<User | null> {
-    const { data, error } = await getSupabase(role)
+    const dbRole = getRoleDatabase(role);
+    const { data, error } = await getSupabase(dbRole)
       .from("users")
       .select("*")
       .eq("id", id)
@@ -167,23 +229,18 @@ export const userDb = {
       return null;
     }
 
-    return {
-      id: data.id,
-      name: data.name,
-      email: data.email,
-      password: data.password,
-      role: data.role,
-      avatar: data.avatar || undefined,
-      createdAt: data.created_at,
-      updatedAt: data.updated_at,
-    };
+    return mapUserRowToUser(data);
   },
 
+  /**
+   * Find user by email
+   */
   async findByEmail(
     email: string,
     role: string = "citizen",
   ): Promise<User | null> {
-    const { data, error } = await getSupabase(role)
+    const dbRole = getRoleDatabase(role);
+    const { data, error } = await getSupabase(dbRole)
       .from("users")
       .select("*")
       .eq("email", email.toLowerCase())
@@ -193,27 +250,27 @@ export const userDb = {
       return null;
     }
 
-    return {
-      id: data.id,
-      name: data.name,
-      email: data.email,
-      password: data.password,
-      role: data.role,
-      avatar: data.avatar || undefined,
-      createdAt: data.created_at,
-      updatedAt: data.updated_at,
-    };
+    return mapUserRowToUser(data);
   },
 
-  async update(id: string, updates: Partial<User>): Promise<User | undefined> {
+  /**
+   * Update user
+   */
+  async update(
+    id: string,
+    updates: Partial<User>,
+    role: string = "citizen",
+  ): Promise<User | undefined> {
+    const dbRole = getRoleDatabase(role);
     const updateData: Record<string, string | null | undefined> = {};
+
     if (updates.name !== undefined) updateData.name = updates.name;
     if (updates.email !== undefined) updateData.email = updates.email;
     if (updates.password !== undefined) updateData.password = updates.password;
     if (updates.role !== undefined) updateData.role = updates.role;
     if (updates.avatar !== undefined) updateData.avatar = updates.avatar;
 
-    const { data, error } = await getSupabase()
+    const { data, error } = await getSupabaseAdmin(dbRole)
       .from("users")
       .update(updateData)
       .eq("id", id)
@@ -225,54 +282,67 @@ export const userDb = {
       return undefined;
     }
 
-    return {
-      id: data.id,
-      name: data.name,
-      email: data.email,
-      password: data.password,
-      role: data.role,
-      avatar: data.avatar || undefined,
-      createdAt: data.created_at,
-      updatedAt: data.updated_at,
-    };
+    return mapUserRowToUser(data);
   },
 
-  async delete(id: string, role: string = "citizen"): Promise<void> {
-    const { error } = await getSupabaseAdmin(role)
+  /**
+   * Delete user
+   */
+  async delete(id: string, role: string = "citizen"): Promise<boolean> {
+    const dbRole = getRoleDatabase(role);
+    const { error } = await getSupabaseAdmin(dbRole)
       .from("users")
       .delete()
       .eq("id", id);
-    if (error) throw error;
+    return !error;
   },
 
-  async getAll(): Promise<User[]> {
-    const { data, error } = await getSupabase().from("users").select("*");
+  /**
+   * Get all users from a specific database
+   */
+  async getAll(role: string = "citizen"): Promise<User[]> {
+    const dbRole = getRoleDatabase(role);
+    const { data, error } = await getSupabase(dbRole).from("users").select("*");
 
     if (error || !data) {
       return [];
     }
 
-    return data.map((user: UserRow) => ({
-      id: user.id,
-      name: user.name,
-      email: user.email,
-      password: user.password,
-      role: user.role as "citizen" | "admin" | "authority",
-      avatar: user.avatar || undefined,
-      createdAt: user.created_at,
-      updatedAt: user.updated_at,
-    }));
+    return data.map(mapUserRowToUser);
+  },
+
+  /**
+   * Get all users from both databases (for admin purposes)
+   */
+  async getAllFromBothDatabases(): Promise<User[]> {
+    const [citizenUsers, adminUsers] = await Promise.all([
+      this.getAll("citizen"),
+      this.getAll("admin"),
+    ]);
+
+    const userMap = new Map<string, User>();
+    [...citizenUsers, ...adminUsers].forEach((user) => {
+      userMap.set(user.id, user);
+    });
+
+    return Array.from(userMap.values());
   },
 };
 
-// Issue operations
+// ============================================================================
+// ISSUE OPERATIONS
+// ============================================================================
+
 export const issueDb = {
+  /**
+   * Create a new issue
+   */
   async create(
     issue: Omit<Issue, "id" | "votes" | "comments" | "createdAt" | "updatedAt">,
     role: string = "citizen",
   ): Promise<Issue | null> {
-    // Use admin client to create issues
-    const { data, error } = await getSupabaseAdmin(role)
+    const dbRole = getRoleDatabase(role);
+    const { data, error } = await getSupabaseAdmin(dbRole)
       .from("issues")
       .insert({
         title: issue.title,
@@ -281,10 +351,11 @@ export const issueDb = {
         location: issue.location,
         latitude: issue.coordinates.lat,
         longitude: issue.coordinates.lng,
-        photo_url: issue.photoUrl || (issue.beforePhotoUrls && issue.beforePhotoUrls.length > 0 ? issue.beforePhotoUrls[0] : null),
+        photo_url: issue.photoUrl || null,
         status: issue.status,
         priority: issue.priority,
         user_id: issue.userId,
+        ward: issue.ward || null,
       })
       .select()
       .single();
@@ -294,14 +365,16 @@ export const issueDb = {
       return null;
     }
 
-    // Get comments for this issue
     const comments = await commentDb.findByIssueId(data.id);
-
-    return mapRowToIssue(data, comments);
+    return mapIssueRowToIssue(data, comments);
   },
 
+  /**
+   * Find issue by ID
+   */
   async findById(id: string, role: string = "citizen"): Promise<Issue | null> {
-    const { data, error } = await getSupabase(role)
+    const dbRole = getRoleDatabase(role);
+    const { data, error } = await getSupabase(dbRole)
       .from("issues")
       .select("*")
       .eq("id", id)
@@ -311,32 +384,38 @@ export const issueDb = {
       return null;
     }
 
-    // Get comments for this issue
     const comments = await commentDb.findByIssueId(data.id);
-
-    return mapRowToIssue(data, comments);
+    return mapIssueRowToIssue(data, comments);
   },
 
+  /**
+   * Update an issue
+   */
   async update(
     id: string,
     updates: Partial<Issue>,
     role: string = "citizen",
-  ): Promise<Issue | null> {
-    const updateData: Record<string, string | number | string[] | null | undefined> = {};
+  ): Promise<Issue | undefined> {
+    const dbRole = getRoleDatabase(role);
+    const updateData: Record<string, unknown> = {};
+
     if (updates.title !== undefined) updateData.title = updates.title;
     if (updates.description !== undefined)
       updateData.description = updates.description;
     if (updates.category !== undefined) updateData.category = updates.category;
     if (updates.location !== undefined) updateData.location = updates.location;
+    if (updates.status !== undefined) updateData.status = updates.status;
+    if (updates.priority !== undefined) updateData.priority = updates.priority;
+    if (updates.photoUrl !== undefined) updateData.photo_url = updates.photoUrl;
+    if (updates.ward !== undefined) updateData.ward = updates.ward;
+    if (updates.resolvedAt !== undefined)
+      updateData.resolved_at = updates.resolvedAt;
     if (updates.coordinates !== undefined) {
       updateData.latitude = updates.coordinates.lat;
       updateData.longitude = updates.coordinates.lng;
     }
-    if (updates.photoUrl !== undefined) updateData.photo_url = updates.photoUrl;
-    if (updates.status !== undefined) updateData.status = updates.status;
-    if (updates.priority !== undefined) updateData.priority = updates.priority;
 
-    const { data, error } = await getSupabaseAdmin(role)
+    const { data, error } = await getSupabaseAdmin(dbRole)
       .from("issues")
       .update(updateData)
       .eq("id", id)
@@ -345,25 +424,31 @@ export const issueDb = {
 
     if (error || !data) {
       console.error("Error updating issue:", error);
-      return null;
+      return undefined;
     }
 
-    // Get comments for this issue
     const comments = await commentDb.findByIssueId(data.id);
-
-    return mapRowToIssue(data, comments);
+    return mapIssueRowToIssue(data, comments);
   },
 
-  async delete(id: string, role: string = "citizen"): Promise<void> {
-    const { error } = await getSupabaseAdmin(role)
+  /**
+   * Delete an issue
+   */
+  async delete(id: string, role: string = "citizen"): Promise<boolean> {
+    const dbRole = getRoleDatabase(role);
+    const { error } = await getSupabaseAdmin(dbRole)
       .from("issues")
       .delete()
       .eq("id", id);
-    if (error) throw error;
+    return !error;
   },
 
+  /**
+   * Get all issues
+   */
   async getAll(role: string = "citizen"): Promise<Issue[]> {
-    const { data, error } = await getSupabase(role)
+    const dbRole = getRoleDatabase(role);
+    const { data, error } = await getSupabase(dbRole)
       .from("issues")
       .select("*")
       .order("created_at", { ascending: false });
@@ -372,22 +457,25 @@ export const issueDb = {
       return [];
     }
 
-    // Convert database records to Issue type
-    const issues = await Promise.all(
-      data.map(async (issue: IssueRow) => {
-        const comments = await commentDb.findByIssueId(issue.id);
-        return mapRowToIssue(issue, comments);
-      }),
-    );
+    // Batch fetch all comments for efficiency
+    const issueIds = data.map((issue: IssueRow) => issue.id);
+    const allComments = await commentDb.findByIssueIds(issueIds);
 
-    return issues;
+    return data.map((issue: IssueRow) => {
+      const comments = allComments.filter((c) => c.issueId === issue.id);
+      return mapIssueRowToIssue(issue, comments);
+    });
   },
 
+  /**
+   * Find issues by user ID
+   */
   async findByUserId(
     userId: string,
     role: string = "citizen",
   ): Promise<Issue[]> {
-    const { data, error } = await getSupabase(role)
+    const dbRole = getRoleDatabase(role);
+    const { data, error } = await getSupabase(dbRole)
       .from("issues")
       .select("*")
       .eq("user_id", userId)
@@ -397,21 +485,24 @@ export const issueDb = {
       return [];
     }
 
-    const issues = await Promise.all(
-      data.map(async (issue: IssueRow) => {
-        const comments = await commentDb.findByIssueId(issue.id);
-        return mapRowToIssue(issue, comments);
-      }),
-    );
+    const issueIds = data.map((issue: IssueRow) => issue.id);
+    const allComments = await commentDb.findByIssueIds(issueIds);
 
-    return issues;
+    return data.map((issue: IssueRow) => {
+      const comments = allComments.filter((c) => c.issueId === issue.id);
+      return mapIssueRowToIssue(issue, comments);
+    });
   },
 
+  /**
+   * Find issues by status
+   */
   async findByStatus(
-    status: IssueStatus,
+    status: string,
     role: string = "citizen",
   ): Promise<Issue[]> {
-    const { data, error } = await getSupabase(role)
+    const dbRole = getRoleDatabase(role);
+    const { data, error } = await getSupabase(dbRole)
       .from("issues")
       .select("*")
       .eq("status", status)
@@ -421,21 +512,24 @@ export const issueDb = {
       return [];
     }
 
-    const issues = await Promise.all(
-      data.map(async (issue: IssueRow) => {
-        const comments = await commentDb.findByIssueId(issue.id);
-        return mapRowToIssue(issue, comments);
-      }),
-    );
+    const issueIds = data.map((issue: IssueRow) => issue.id);
+    const allComments = await commentDb.findByIssueIds(issueIds);
 
-    return issues;
+    return data.map((issue: IssueRow) => {
+      const comments = allComments.filter((c) => c.issueId === issue.id);
+      return mapIssueRowToIssue(issue, comments);
+    });
   },
 
+  /**
+   * Find issues by category
+   */
   async findByCategory(
-    category: IssueCategory,
+    category: string,
     role: string = "citizen",
   ): Promise<Issue[]> {
-    const { data, error } = await getSupabase(role)
+    const dbRole = getRoleDatabase(role);
+    const { data, error } = await getSupabase(dbRole)
       .from("issues")
       .select("*")
       .eq("category", category)
@@ -445,71 +539,84 @@ export const issueDb = {
       return [];
     }
 
-    const issues = await Promise.all(
-      data.map(async (issue: IssueRow) => {
-        const comments = await commentDb.findByIssueId(issue.id);
-        return mapRowToIssue(issue, comments);
-      }),
-    );
+    const issueIds = data.map((issue: IssueRow) => issue.id);
+    const allComments = await commentDb.findByIssueIds(issueIds);
 
-    return issues;
+    return data.map((issue: IssueRow) => {
+      const comments = allComments.filter((c) => c.issueId === issue.id);
+      return mapIssueRowToIssue(issue, comments);
+    });
   },
 
+  /**
+   * Increment vote count for an issue
+   */
   async incrementVotes(
     id: string,
     role: string = "citizen",
-  ): Promise<Issue | null> {
-    // First get current vote count
+  ): Promise<Issue | undefined> {
+    const dbRole = getRoleDatabase(role);
     const current = await this.findById(id, role);
-    if (!current) return null;
-    const { data, error } = await getSupabaseAdmin(role)
+    if (!current) return undefined;
+
+    const { data, error } = await getSupabaseAdmin(dbRole)
       .from("issues")
-      .update({ votes: (current.votes || 0) + 1 })
+      .update({ votes: current.votes + 1 })
       .eq("id", id)
       .select()
       .single();
 
     if (error || !data) {
-      return null;
+      console.error("Error incrementing votes:", error);
+      return undefined;
     }
 
     const comments = await commentDb.findByIssueId(data.id);
-
-    return mapRowToIssue(data, comments);
+    return mapIssueRowToIssue(data, comments);
   },
 
+  /**
+   * Decrement vote count for an issue
+   */
   async decrementVotes(
     id: string,
     role: string = "citizen",
-  ): Promise<Issue | null> {
-    // First get current vote count
+  ): Promise<Issue | undefined> {
+    const dbRole = getRoleDatabase(role);
     const current = await this.findById(id, role);
-    if (!current) return null;
-    const { data, error } = await getSupabaseAdmin(role)
+    if (!current || current.votes <= 0) return current;
+
+    const { data, error } = await getSupabaseAdmin(dbRole)
       .from("issues")
-      .update({ votes: Math.max((current.votes || 0) - 1, 0) })
+      .update({ votes: Math.max(0, current.votes - 1) })
       .eq("id", id)
       .select()
       .single();
 
     if (error || !data) {
-      return null;
+      console.error("Error decrementing votes:", error);
+      return undefined;
     }
 
     const comments = await commentDb.findByIssueId(data.id);
-
-    return mapRowToIssue(data, comments);
+    return mapIssueRowToIssue(data, comments);
   },
 };
 
-// Comment operations
+// ============================================================================
+// COMMENT OPERATIONS
+// ============================================================================
+
 export const commentDb = {
+  /**
+   * Create a new comment
+   */
   async create(
     comment: Omit<Comment, "id" | "createdAt">,
     role: string = "citizen",
   ): Promise<Comment | null> {
-    // Use admin client to create comments
-    const { data, error } = await getSupabaseAdmin(role)
+    const dbRole = getRoleDatabase(role);
+    const { data, error } = await getSupabaseAdmin(dbRole)
       .from("comments")
       .insert({
         issue_id: comment.issueId,
@@ -525,45 +632,39 @@ export const commentDb = {
       return null;
     }
 
-    return {
-      id: data.id,
-      issueId: data.issue_id,
-      userId: data.user_id,
-      userName: data.user_name,
-      content: data.content,
-      createdAt: data.created_at,
-    };
+    return mapCommentRowToComment(data);
   },
 
+  /**
+   * Find comment by ID
+   */
   async findById(
     id: string,
     role: string = "citizen",
-  ): Promise<Comment | null> {
-    const { data, error } = await getSupabase(role)
+  ): Promise<Comment | undefined> {
+    const dbRole = getRoleDatabase(role);
+    const { data, error } = await getSupabase(dbRole)
       .from("comments")
       .select("*")
       .eq("id", id)
       .single();
 
     if (error || !data) {
-      return null;
+      return undefined;
     }
 
-    return {
-      id: data.id,
-      issueId: data.issue_id,
-      userId: data.user_id,
-      userName: data.user_name,
-      content: data.content,
-      createdAt: data.created_at,
-    };
+    return mapCommentRowToComment(data);
   },
 
+  /**
+   * Find comments by issue ID
+   */
   async findByIssueId(
     issueId: string,
     role: string = "citizen",
   ): Promise<Comment[]> {
-    const { data, error } = await getSupabase(role)
+    const dbRole = getRoleDatabase(role);
+    const { data, error } = await getSupabase(dbRole)
       .from("comments")
       .select("*")
       .eq("issue_id", issueId)
@@ -573,32 +674,59 @@ export const commentDb = {
       return [];
     }
 
-    return data.map((comment: CommentRow) => ({
-      id: comment.id,
-      issueId: comment.issue_id,
-      userId: comment.user_id,
-      userName: comment.user_name,
-      content: comment.content,
-      createdAt: comment.created_at,
-    }));
+    return data.map(mapCommentRowToComment);
   },
 
-  async delete(id: string, role: string = "citizen"): Promise<void> {
-    const { error } = await getSupabaseAdmin(role)
+  /**
+   * Find comments by multiple issue IDs (batch operation for efficiency)
+   */
+  async findByIssueIds(
+    issueIds: string[],
+    role: string = "citizen",
+  ): Promise<Comment[]> {
+    if (issueIds.length === 0) return [];
+
+    const dbRole = getRoleDatabase(role);
+    const { data, error } = await getSupabase(dbRole)
+      .from("comments")
+      .select("*")
+      .in("issue_id", issueIds)
+      .order("created_at", { ascending: true });
+
+    if (error || !data) {
+      return [];
+    }
+
+    return data.map(mapCommentRowToComment);
+  },
+
+  /**
+   * Delete a comment
+   */
+  async delete(id: string, role: string = "citizen"): Promise<boolean> {
+    const dbRole = getRoleDatabase(role);
+    const { error } = await getSupabaseAdmin(dbRole)
       .from("comments")
       .delete()
       .eq("id", id);
-    if (error) throw error;
+    return !error;
   },
 };
 
-// Vote operations
+// ============================================================================
+// VOTE OPERATIONS
+// ============================================================================
+
 export const voteDb = {
+  /**
+   * Create a new vote
+   */
   async create(
     vote: Omit<Vote, "id" | "createdAt">,
     role: string = "citizen",
   ): Promise<Vote | null> {
-    const { data, error } = await getSupabaseAdmin(role)
+    const dbRole = getRoleDatabase(role);
+    const { data, error } = await getSupabaseAdmin(dbRole)
       .from("votes")
       .insert({
         issue_id: vote.issueId,
@@ -612,20 +740,19 @@ export const voteDb = {
       return null;
     }
 
-    return {
-      id: data.id,
-      issueId: data.issue_id,
-      userId: data.user_id,
-      createdAt: data.created_at,
-    };
+    return mapVoteRowToVote(data);
   },
 
+  /**
+   * Find vote by user and issue
+   */
   async findByUserAndIssue(
     userId: string,
     issueId: string,
     role: string = "citizen",
-  ): Promise<Vote | null> {
-    const { data, error } = await getSupabase(role)
+  ): Promise<Vote | undefined> {
+    const dbRole = getRoleDatabase(role);
+    const { data, error } = await getSupabase(dbRole)
       .from("votes")
       .select("*")
       .eq("user_id", userId)
@@ -633,30 +760,33 @@ export const voteDb = {
       .single();
 
     if (error || !data) {
-      return null;
+      return undefined;
     }
 
-    return {
-      id: data.id,
-      issueId: data.issue_id,
-      userId: data.user_id,
-      createdAt: data.created_at,
-    };
+    return mapVoteRowToVote(data);
   },
 
-  async delete(id: string, role: string = "citizen"): Promise<void> {
-    const { error } = await getSupabaseAdmin(role)
+  /**
+   * Delete a vote
+   */
+  async delete(id: string, role: string = "citizen"): Promise<boolean> {
+    const dbRole = getRoleDatabase(role);
+    const { error } = await getSupabaseAdmin(dbRole)
       .from("votes")
       .delete()
       .eq("id", id);
-    if (error) throw error;
+    return !error;
   },
 
+  /**
+   * Find votes by issue ID
+   */
   async findByIssueId(
     issueId: string,
     role: string = "citizen",
   ): Promise<Vote[]> {
-    const { data, error } = await getSupabase(role)
+    const dbRole = getRoleDatabase(role);
+    const { data, error } = await getSupabase(dbRole)
       .from("votes")
       .select("*")
       .eq("issue_id", issueId);
@@ -665,16 +795,16 @@ export const voteDb = {
       return [];
     }
 
-    return data.map((vote: VoteRow) => ({
-      id: vote.id,
-      issueId: vote.issue_id,
-      userId: vote.user_id,
-      createdAt: vote.created_at,
-    }));
+    return data.map(mapVoteRowToVote);
   },
 };
 
-// No seed function needed - seed data is in schema.sql
-export async function seedDatabase() {
-  console.log("Using Supabase - seed data should be loaded via schema.sql");
+// ============================================================================
+// SEED DATABASE (No-op for Supabase)
+// ============================================================================
+
+export async function seedDatabase(): Promise<void> {
+  console.log(
+    "⚠️ Supabase database seeding should be done via migrations, not through the application",
+  );
 }

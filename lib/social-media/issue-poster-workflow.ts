@@ -1,6 +1,8 @@
 // LangGraph Workflow for Automated Social Media Posting
 // Uses AI to generate engaging content and posts civic issues to X/Twitter
 
+/* eslint-disable @typescript-eslint/no-explicit-any */
+
 import { StateGraph, END, START } from "@langchain/langgraph";
 import { ChatGoogleGenerativeAI } from "@langchain/google-genai";
 import { getTwitterClient, TweetResult } from "./twitter-client";
@@ -30,8 +32,32 @@ export interface IssuePostingState {
 }
 
 // ============================================================================
-// AI CONTENT GENERATOR
+// AI CONTENT GENERATOR (SINGLETON PATTERN)
 // ============================================================================
+
+/**
+ * Singleton instance for the content generator
+ * This prevents creating multiple ChatGoogleGenerativeAI connections per workflow run
+ */
+let contentGeneratorInstance: IssueContentGenerator | null = null;
+
+/**
+ * Get or create the singleton IssueContentGenerator instance
+ * This is more efficient than creating a new instance for each workflow node
+ */
+function getContentGenerator(): IssueContentGenerator {
+  if (!contentGeneratorInstance) {
+    contentGeneratorInstance = new IssueContentGenerator();
+  }
+  return contentGeneratorInstance;
+}
+
+/**
+ * Reset the content generator (useful for testing or when API key changes)
+ */
+export function resetContentGenerator(): void {
+  contentGeneratorInstance = null;
+}
 
 class IssueContentGenerator {
   private model: ChatGoogleGenerativeAI;
@@ -104,7 +130,7 @@ Generate ONLY the tweet text, nothing else.`;
   /**
    * Generate a simple fallback tweet without AI
    */
-  private generateFallbackTweet(issue: Issue): string {
+  generateFallbackTweet(issue: Issue): string {
     const categoryEmoji: Record<string, string> = {
       pothole: "🚧",
       streetlight: "💡",
@@ -137,7 +163,7 @@ Generate ONLY the tweet text, nothing else.`;
       const titleLength = 280 - tweet.length + issue.title.length - 20;
       tweet = tweet.replace(
         issue.title,
-        issue.title.substring(0, titleLength) + "...",
+        issue.title.substring(0, Math.max(titleLength, 10)) + "...",
       );
     }
 
@@ -197,6 +223,7 @@ Example: "REJECT: Contains personal information"`;
 /**
  * Node 1: Content Moderation
  * Checks if the issue content is appropriate for social media
+ * Uses singleton pattern to avoid creating duplicate AI connections
  */
 async function moderateIssue(
   state: IssuePostingState,
@@ -209,7 +236,8 @@ async function moderateIssue(
   }
 
   try {
-    const generator = new IssueContentGenerator();
+    // Use singleton instead of creating new instance
+    const generator = getContentGenerator();
     const moderation = await generator.moderateContent(state.issue);
 
     if (!moderation.shouldPost) {
@@ -239,6 +267,7 @@ async function moderateIssue(
 /**
  * Node 2: Generate Tweet Content
  * Uses AI to create engaging tweet text
+ * Uses singleton pattern to reuse the same AI connection from moderation
  */
 async function generateContent(
   state: IssuePostingState,
@@ -246,7 +275,8 @@ async function generateContent(
   console.log(`✍️ Generating tweet content for: ${state.issue.title}`);
 
   try {
-    const generator = new IssueContentGenerator();
+    // Use singleton instead of creating new instance
+    const generator = getContentGenerator();
     const tweetText = await generator.generateTweet(state.issue);
 
     return { tweetText };
@@ -400,6 +430,8 @@ function shouldUploadMedia(state: IssuePostingState): string {
 
 /**
  * Create the LangGraph workflow
+ * The workflow is created fresh each time to ensure clean state,
+ * but the underlying AI connections are reused via singleton pattern
  */
 function createWorkflow() {
   // Create workflow with state schema
@@ -407,7 +439,7 @@ function createWorkflow() {
     channels: {
       issue: {
         value: (x: Issue, y: Issue) => y ?? x,
-        default: () => ({} as Issue),
+        default: () => ({}) as Issue,
       },
       includeImage: {
         value: (x: boolean, y: boolean) => y ?? x,
@@ -436,8 +468,8 @@ function createWorkflow() {
       moderationStatus: {
         value: (x: string, y: string) => y ?? x,
         default: () => "pending",
-      }
-    } as any
+      },
+    } as any,
   });
 
   // Add nodes
@@ -472,6 +504,10 @@ function createWorkflow() {
 
 /**
  * Post an issue to social media using the workflow
+ *
+ * @param issue - The issue to post
+ * @param options - Configuration options
+ * @returns TweetResult with success status and optional URL/error
  */
 export async function postIssueToSocialMedia(
   issue: Issue,
@@ -488,6 +524,7 @@ export async function postIssueToSocialMedia(
   console.log(`   Title: ${issue.title}`);
   console.log(`   Category: ${issue.category}`);
   console.log(`   Include image: ${includeImage}`);
+  console.log(`   Auto-approve: ${autoApprove}`);
 
   try {
     const workflow = createWorkflow();
@@ -524,6 +561,10 @@ export async function postIssueToSocialMedia(
 
 /**
  * Batch post multiple issues to social media
+ *
+ * @param issues - Array of issues to post
+ * @param options - Configuration options including delay between posts
+ * @returns Summary with success/failed counts and individual results
  */
 export async function postMultipleIssues(
   issues: Issue[],
@@ -587,4 +628,45 @@ export async function postMultipleIssues(
   console.log(`   ❌ Failed: ${failed}`);
 
   return { success, failed, results };
+}
+
+/**
+ * Check if the social media posting service is available
+ */
+export function isSocialMediaServiceAvailable(): boolean {
+  const hasGeminiKey = !!process.env.GEMINI_API_KEY;
+  const twitterClient = getTwitterClient();
+  const hasTwitter = twitterClient.isReady();
+
+  return hasGeminiKey && hasTwitter;
+}
+
+/**
+ * Get the status of social media services
+ */
+export function getSocialMediaServiceStatus(): {
+  available: boolean;
+  gemini: boolean;
+  twitter: boolean;
+  errors: string[];
+} {
+  const errors: string[] = [];
+
+  const hasGeminiKey = !!process.env.GEMINI_API_KEY;
+  if (!hasGeminiKey) {
+    errors.push("GEMINI_API_KEY not configured");
+  }
+
+  const twitterClient = getTwitterClient();
+  const hasTwitter = twitterClient.isReady();
+  if (!hasTwitter) {
+    errors.push("Twitter API credentials not configured");
+  }
+
+  return {
+    available: hasGeminiKey && hasTwitter,
+    gemini: hasGeminiKey,
+    twitter: hasTwitter,
+    errors,
+  };
 }

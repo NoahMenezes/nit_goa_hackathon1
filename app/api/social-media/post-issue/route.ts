@@ -1,9 +1,22 @@
 import { NextRequest, NextResponse } from "next/server";
 import { postIssueToSocialMedia } from "@/lib/social-media/issue-poster-workflow";
 import { Issue } from "@/lib/types";
+import { requireAdmin } from "@/lib/auth";
 
 export async function POST(request: NextRequest) {
   try {
+    // SECURITY: Require admin authentication for social media posting
+    const authResult = await requireAdmin(request);
+    if (!authResult.authorized) {
+      return NextResponse.json(
+        {
+          success: false,
+          error: authResult.error || "Unauthorized - Admin access required",
+        },
+        { status: 401 },
+      );
+    }
+
     const body = await request.json();
 
     // Validate required fields
@@ -13,7 +26,7 @@ export async function POST(request: NextRequest) {
           success: false,
           error: "Missing required fields: id, title, description, category",
         },
-        { status: 400 }
+        { status: 400 },
       );
     }
 
@@ -42,7 +55,9 @@ export async function POST(request: NextRequest) {
     const includeImage = body.includeImage !== false;
     const autoApprove = body.autoApprove === true;
 
-    console.log(`📢 API: Posting issue to social media: ${issue.title}`);
+    console.log(
+      `📢 API: Posting issue to social media: ${issue.title} (by admin: ${authResult.user?.email})`,
+    );
 
     // Run the LangGraph workflow
     const result = await postIssueToSocialMedia(issue, {
@@ -57,8 +72,9 @@ export async function POST(request: NextRequest) {
           message: "Issue posted to social media successfully",
           tweetId: result.tweetId,
           tweetUrl: result.url,
+          postedBy: authResult.user?.email,
         },
-        { status: 200 }
+        { status: 200 },
       );
     } else {
       return NextResponse.json(
@@ -66,7 +82,7 @@ export async function POST(request: NextRequest) {
           success: false,
           error: result.error || "Failed to post to social media",
         },
-        { status: 400 }
+        { status: 400 },
       );
     }
   } catch (error) {
@@ -76,12 +92,24 @@ export async function POST(request: NextRequest) {
         success: false,
         error: error instanceof Error ? error.message : "Internal server error",
       },
-      { status: 500 }
+      { status: 500 },
     );
   }
 }
 
-export async function GET() {
+export async function GET(request: NextRequest) {
+  // Require authentication even for status check
+  const authResult = await requireAdmin(request);
+  if (!authResult.authorized) {
+    return NextResponse.json(
+      {
+        success: false,
+        error: authResult.error || "Unauthorized - Admin access required",
+      },
+      { status: 401 },
+    );
+  }
+
   // Return status of social media configuration
   const twitterConfigured = !!(
     process.env.TWITTER_API_KEY &&
@@ -94,7 +122,8 @@ export async function GET() {
 
   const autoPostEnabled = process.env.ENABLE_SOCIAL_MEDIA_AUTO_POST === "true";
   const autoApprove = process.env.SOCIAL_MEDIA_AUTO_APPROVE === "true";
-  const postPriorities = process.env.SOCIAL_MEDIA_POST_PRIORITIES || "high,critical";
+  const postPriorities =
+    process.env.SOCIAL_MEDIA_POST_PRIORITIES || "high,critical";
 
   return NextResponse.json(
     {
@@ -108,6 +137,6 @@ export async function GET() {
         ready: twitterConfigured && geminiConfigured,
       },
     },
-    { status: 200 }
+    { status: 200 },
   );
 }

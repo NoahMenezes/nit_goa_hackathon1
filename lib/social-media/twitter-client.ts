@@ -1,7 +1,7 @@
 // X/Twitter API Client
 // Handles authentication and posting to X (formerly Twitter)
 
-import { TwitterApi, TwitterApiReadWrite } from 'twitter-api-v2';
+import { TwitterApi, TwitterApiReadWrite } from "twitter-api-v2";
 
 export interface TweetContent {
   text: string;
@@ -28,18 +28,21 @@ export class TwitterClient {
     try {
       // Get credentials from environment variables
       const apiKey = process.env.TWITTER_API_KEY || process.env.X_API_KEY;
-      const apiSecret = process.env.TWITTER_API_SECRET || process.env.X_API_SECRET;
-      const accessToken = process.env.TWITTER_ACCESS_TOKEN || process.env.X_ACCESS_TOKEN;
-      const accessSecret = process.env.TWITTER_ACCESS_SECRET || process.env.X_ACCESS_SECRET;
+      const apiSecret =
+        process.env.TWITTER_API_SECRET || process.env.X_API_SECRET;
+      const accessToken =
+        process.env.TWITTER_ACCESS_TOKEN || process.env.X_ACCESS_TOKEN;
+      const accessSecret =
+        process.env.TWITTER_ACCESS_SECRET || process.env.X_ACCESS_SECRET;
 
       if (!apiKey || !apiSecret || !accessToken || !accessSecret) {
         console.warn(
-          '⚠️  X/Twitter credentials not configured. Social media posting disabled.\n' +
-          '   Required environment variables:\n' +
-          '   - TWITTER_API_KEY (or X_API_KEY)\n' +
-          '   - TWITTER_API_SECRET (or X_API_SECRET)\n' +
-          '   - TWITTER_ACCESS_TOKEN (or X_ACCESS_TOKEN)\n' +
-          '   - TWITTER_ACCESS_SECRET (or X_ACCESS_SECRET)'
+          "⚠️  X/Twitter credentials not configured. Social media posting disabled.\n" +
+            "   Required environment variables:\n" +
+            "   - TWITTER_API_KEY (or X_API_KEY)\n" +
+            "   - TWITTER_API_SECRET (or X_API_SECRET)\n" +
+            "   - TWITTER_ACCESS_TOKEN (or X_ACCESS_TOKEN)\n" +
+            "   - TWITTER_ACCESS_SECRET (or X_ACCESS_SECRET)",
         );
         this.isConfigured = false;
         return;
@@ -56,9 +59,9 @@ export class TwitterClient {
       this.client = twitterClient.readWrite;
       this.isConfigured = true;
 
-      console.log('✅ X/Twitter client initialized successfully');
+      console.log("✅ X/Twitter client initialized successfully");
     } catch (error) {
-      console.error('Failed to initialize X/Twitter client:', error);
+      console.error("Failed to initialize X/Twitter client:", error);
       this.isConfigured = false;
     }
   }
@@ -77,7 +80,8 @@ export class TwitterClient {
     if (!this.isReady()) {
       return {
         success: false,
-        error: 'X/Twitter client not configured. Please set up API credentials.',
+        error:
+          "X/Twitter client not configured. Please set up API credentials.",
       };
     }
 
@@ -93,18 +97,43 @@ export class TwitterClient {
       if (content.text.length === 0) {
         return {
           success: false,
-          error: 'Tweet text cannot be empty',
+          error: "Tweet text cannot be empty",
         };
       }
 
       console.log(`📤 Posting tweet: "${content.text.substring(0, 50)}..."`);
 
       // Post the tweet
-      const tweet = await this.client!.v2.tweet({
+      const tweetPayload: {
+        text: string;
+        media?: {
+          media_ids:
+            | [string]
+            | [string, string]
+            | [string, string, string]
+            | [string, string, string, string];
+        };
+        reply?: { in_reply_to_tweet_id: string };
+      } = {
         text: content.text,
-        ...(content.mediaIds && { media: { media_ids: content.mediaIds } }),
-        ...(content.replyToTweetId && { reply: { in_reply_to_tweet_id: content.replyToTweetId } }),
-      });
+      };
+
+      if (content.mediaIds && content.mediaIds.length > 0) {
+        // Twitter API requires tuple type for media_ids (1-4 items)
+        tweetPayload.media = {
+          media_ids: content.mediaIds.slice(0, 4) as
+            | [string]
+            | [string, string]
+            | [string, string, string]
+            | [string, string, string, string],
+        };
+      }
+
+      if (content.replyToTweetId) {
+        tweetPayload.reply = { in_reply_to_tweet_id: content.replyToTweetId };
+      }
+
+      const tweet = await this.client!.v2.tweet(tweetPayload);
 
       const tweetId = tweet.data.id;
       const tweetUrl = `https://twitter.com/i/web/status/${tweetId}`;
@@ -116,18 +145,20 @@ export class TwitterClient {
         tweetId,
         url: tweetUrl,
       };
-    } catch (error: any) {
-      console.error('Error posting tweet:', error);
+    } catch (error: unknown) {
+      console.error("Error posting tweet:", error);
 
       // Handle specific Twitter API errors
-      let errorMessage = 'Failed to post tweet';
+      let errorMessage = "Failed to post tweet";
 
-      if (error.code === 403) {
-        errorMessage = 'Authentication failed. Check your X/Twitter API credentials.';
-      } else if (error.code === 429) {
-        errorMessage = 'Rate limit exceeded. Please try again later.';
-      } else if (error.message) {
-        errorMessage = error.message;
+      const err = error as { code?: number; message?: string };
+      if (err.code === 403) {
+        errorMessage =
+          "Authentication failed. Check your X/Twitter API credentials.";
+      } else if (err.code === 429) {
+        errorMessage = "Rate limit exceeded. Please try again later.";
+      } else if (err.message) {
+        errorMessage = err.message;
       }
 
       return {
@@ -142,22 +173,27 @@ export class TwitterClient {
    * @param mediaBuffer - Buffer containing image data
    * @param mimeType - MIME type of the media (e.g., 'image/jpeg', 'image/png')
    */
-  public async uploadMedia(mediaBuffer: Buffer, mimeType: string): Promise<string | null> {
+  public async uploadMedia(
+    mediaBuffer: Buffer,
+    mimeType: string,
+  ): Promise<string | null> {
     if (!this.isReady()) {
-      console.error('X/Twitter client not configured');
+      console.error("X/Twitter client not configured");
       return null;
     }
 
     try {
       console.log(`📤 Uploading media (${mimeType})...`);
 
-      const mediaId = await this.client!.v1.uploadMedia(mediaBuffer, { mimeType });
+      const mediaId = await this.client!.v1.uploadMedia(mediaBuffer, {
+        mimeType,
+      });
 
       console.log(`✅ Media uploaded successfully: ${mediaId}`);
 
       return mediaId;
     } catch (error) {
-      console.error('Error uploading media:', error);
+      console.error("Error uploading media:", error);
       return null;
     }
   }
@@ -169,14 +205,14 @@ export class TwitterClient {
     if (!this.isReady()) {
       return {
         success: false,
-        error: 'X/Twitter client not configured',
+        error: "X/Twitter client not configured",
       };
     }
 
     if (tweets.length === 0) {
       return {
         success: false,
-        error: 'Thread must contain at least one tweet',
+        error: "Thread must contain at least one tweet",
       };
     }
 
@@ -203,7 +239,7 @@ export class TwitterClient {
 
         // Add delay between tweets to avoid rate limits
         if (i < tweets.length - 1) {
-          await new Promise(resolve => setTimeout(resolve, 2000));
+          await new Promise((resolve) => setTimeout(resolve, 2000));
         }
       }
 
@@ -217,10 +253,10 @@ export class TwitterClient {
         url: threadUrl,
       };
     } catch (error) {
-      console.error('Error posting thread:', error);
+      console.error("Error posting thread:", error);
       return {
         success: false,
-        error: error instanceof Error ? error.message : 'Failed to post thread',
+        error: error instanceof Error ? error.message : "Failed to post thread",
       };
     }
   }
@@ -238,7 +274,7 @@ export class TwitterClient {
       console.log(`✅ Authenticated as @${user.data.username}`);
       return true;
     } catch (error) {
-      console.error('Failed to verify X/Twitter credentials:', error);
+      console.error("Failed to verify X/Twitter credentials:", error);
       return false;
     }
   }
@@ -246,7 +282,10 @@ export class TwitterClient {
   /**
    * Get account information
    */
-  public async getAccountInfo(): Promise<{ username: string; name: string } | null> {
+  public async getAccountInfo(): Promise<{
+    username: string;
+    name: string;
+  } | null> {
     if (!this.isReady()) {
       return null;
     }
@@ -258,7 +297,7 @@ export class TwitterClient {
         name: user.data.name,
       };
     } catch (error) {
-      console.error('Failed to get account info:', error);
+      console.error("Failed to get account info:", error);
       return null;
     }
   }

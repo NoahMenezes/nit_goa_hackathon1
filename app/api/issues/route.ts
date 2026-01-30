@@ -19,6 +19,29 @@ import { postIssueToSocialMedia } from "@/lib/social-media/issue-poster-workflow
 const REQUIRE_AUTH_FOR_ISSUE_CREATION =
   process.env.REQUIRE_AUTH_FOR_ISSUES === "true";
 
+// ============================================================================
+// HELPER FUNCTIONS
+// ============================================================================
+
+/**
+ * Determine priority based on category
+ * This centralizes the priority logic to avoid duplication
+ */
+function determinePriorityByCategory(
+  category: string,
+): "low" | "medium" | "high" | "critical" {
+  // High priority categories - immediate safety/health concerns
+  if (["water_leak", "electricity", "traffic"].includes(category)) {
+    return "high";
+  }
+  // Medium priority categories - infrastructure issues
+  if (["pothole", "streetlight", "drainage"].includes(category)) {
+    return "medium";
+  }
+  // Low priority for other categories
+  return "low";
+}
+
 // Validation helpers
 function isValidCoordinate(lat: number, lng: number): boolean {
   return lat >= -90 && lat <= 90 && lng >= -180 && lng <= 180;
@@ -391,24 +414,12 @@ export async function POST(request: NextRequest) {
         // User overrode AI suggestion
         aiMetadata.manualOverride = true;
         finalCategory = category;
-        // Manual priority determination
-        if (["water_leak", "electricity", "traffic"].includes(category)) {
-          priority = "high";
-        } else if (["pothole", "streetlight"].includes(category)) {
-          priority = "medium";
-        } else {
-          priority = "low";
-        }
+        // Use centralized priority determination
+        priority = determinePriorityByCategory(category);
       }
     } else {
-      // Manual categorization - determine priority based on category
-      if (["water_leak", "electricity", "traffic"].includes(category)) {
-        priority = "high";
-      } else if (["pothole", "streetlight"].includes(category)) {
-        priority = "medium";
-      } else {
-        priority = "low";
-      }
+      // Manual categorization - use centralized priority determination
+      priority = determinePriorityByCategory(category);
     }
 
     // Create new issue with sanitized data
@@ -616,7 +627,8 @@ export async function POST(request: NextRequest) {
 
     // Attempt automated social media posting
     try {
-      const autoPostEnabled = process.env.ENABLE_SOCIAL_MEDIA_AUTO_POST === "true";
+      const autoPostEnabled =
+        process.env.ENABLE_SOCIAL_MEDIA_AUTO_POST === "true";
       const autoApprove = process.env.SOCIAL_MEDIA_AUTO_APPROVE === "true";
 
       if (autoPostEnabled) {
@@ -625,16 +637,25 @@ export async function POST(request: NextRequest) {
         // We run this asynchronously to not block the main response
         postIssueToSocialMedia(newIssue, {
           includeImage: true,
-          autoApprove: autoApprove
-        }).then(result => {
-          if (result.success) {
-            console.log(`✅ Auto-posted issue ${newIssue.id} to social media: ${result.url}`);
-          } else {
-            console.warn(`⚠️ Auto-posting failed for issue ${newIssue.id}: ${result.error}`);
-          }
-        }).catch(err => {
-          console.error(`❌ Fatal error in auto-posting workflow for issue ${newIssue.id}:`, err);
-        });
+          autoApprove: autoApprove,
+        })
+          .then((result) => {
+            if (result.success) {
+              console.log(
+                `✅ Auto-posted issue ${newIssue.id} to social media: ${result.url}`,
+              );
+            } else {
+              console.warn(
+                `⚠️ Auto-posting failed for issue ${newIssue.id}: ${result.error}`,
+              );
+            }
+          })
+          .catch((err) => {
+            console.error(
+              `❌ Fatal error in auto-posting workflow for issue ${newIssue.id}:`,
+              err,
+            );
+          });
       }
     } catch (socialError) {
       console.error("Error initiating social media auto-post:", socialError);
